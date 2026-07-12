@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --border: 220 13% 91%;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
