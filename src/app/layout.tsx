@@ -5,8 +5,12 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export const metadata: Metadata = {
-  title: "Job Management System",
-  description: "PERN stack job management platform",
+  title: {
+    default: "JobStack — Milestone-based freelancing",
+    template: "%s · JobStack",
+  },
+  description:
+    "Post jobs with proof-based milestones, complete tasks phase by phase, and withdraw earnings straight to your wallet.",
 };
 
 // ROOT LAYOUT — Server Component. Wraps the whole app in the Redux provider

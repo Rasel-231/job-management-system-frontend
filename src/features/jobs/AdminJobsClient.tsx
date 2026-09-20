@@ -38,13 +38,13 @@ export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Manage Jobs</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Manage jobs</h1>
         <Can permission={Permission.JOB_CREATE}>
           <JobFormDialog mode="create" onSuccess={handleCreateSuccess} />
         </Can>
       </div>
 
-      <div className="border rounded-lg bg-white">
+      <div className="card-shadow overflow-hidden rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -57,17 +57,17 @@ export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }
           <TableBody>
             {jobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-6 text-gray-500">No jobs posted yet</TableCell>
+                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">No jobs posted yet</TableCell>
               </TableRow>
             ) : (
               jobs.map((job) => (
                 <TableRow key={job.id}>
                   <TableCell className="font-medium">
-                    <Link href={`/admin/jobs/${job.id}`} className="hover:underline">{job.title}</Link>
+                    <Link href={`/admin/jobs/${job.id}`} className="transition-colors hover:text-primary hover:underline">{job.title}</Link>
                   </TableCell>
-                  <TableCell>${job.reward}</TableCell>
+                  <TableCell>৳{job.reward.toLocaleString()}</TableCell>
                   <TableCell>{job.postedBy?.name}</TableCell>
-                  <TableCell className="text-right space-x-2">
+                  <TableCell className="space-x-2 text-right">
                     <Can permission={Permission.JOB_UPDATE}>
                       <JobFormDialog mode="edit" job={job} onSuccess={handleEditSuccess} />
                     </Can>

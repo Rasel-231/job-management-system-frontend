@@ -3,9 +3,119 @@
 @tailwind utilities;
 
 :root {
-  --border: 220 13% 91%;
+  --background: 220 33% 98%;
+  --foreground: 222 47% 11%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 243 75% 59%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 16% 96%;
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 220 16% 96%;
+  --muted-foreground: 218 12% 46%;
+
+  --accent: 243 75% 96%;
+  --accent-foreground: 243 75% 42%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 220 16% 90%;
+  --input: 220 16% 85%;
+  --ring: 243 75% 59%;
 }
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-muted-foreground/25;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+}
+
+@layer utilities {
+  .card-shadow {
+    @apply shadow-sm;
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 4px 16px -2px rgb(15 23 42 / 0.06);
+  }
+
+  .card-shadow-hover {
+    @apply transition-all duration-200;
+  }
+  .card-shadow-hover:hover {
+    box-shadow:
+      0 2px 4px rgb(15 23 42 / 0.06),
+      0 12px 28px -4px rgb(15 23 42 / 0.14);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes grid-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float {
+  animation: float 7s ease-in-out infinite;
+}
+
+.animate-grid-fade {
+  animation: grid-fade 0.35s ease-out both;
 }

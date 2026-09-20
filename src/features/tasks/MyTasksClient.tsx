@@ -1,92 +1,279 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import { toast } from "react-toastify";
-import { submitTask } from "./taskApi";
-import { TTask } from "./types";
-import { Button } from "../../components/ui/button";
+import { getMyTasks, completeStep, submitProof } from "./taskApi";
+import { TTask, TTaskStep } from "./types";
+import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import { Input } from "../../components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Textarea } from "../../components/ui/textarea";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Checkbox } from "../../components/ui/checkbox";
+import { cn } from "../../lib/utils";
+import type { TBadgeVariant } from "../../components/ui/badge";
 
-const statusStyles: Record<TTask["status"], string> = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  APPROVED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
+const statusBadge: Record<TTask["status"], TBadgeVariant> = {
+  PENDING: "warning",
+  IN_PROGRESS: "info",
+  SUBMITTED: "secondary",
+  APPROVED: "success",
+  REJECTED: "destructive",
 };
 
-export default function MyTasksClient({ initialTasks }: { initialTasks: TTask[] }) {
-  const [tasks, setTasks] = useState<TTask[]>(initialTasks);
-  const [resubmitTarget, setResubmitTarget] = useState<string | null>(null);
-  const [newLink, setNewLink] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function MyTasksClient() {
+  const [tasks, setTasks] = useState<TTask[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleResubmit = async (jobId: string) => {
-    if (!newLink) {
-      toast.error("Please provide a new submission link");
-      return;
-    }
-    setIsSubmitting(true);
+  const [submitTarget, setSubmitTarget] = useState<TTask | null>(null);
+  const [link, setLink] = useState("");
+  const [note, setNote] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
     try {
-      const updated = await submitTask({ jobId, submissionLink: newLink });
-      toast.success("Task resubmitted for review");
-      setTasks((prev) => prev.map((t) => (t.job.id === jobId ? { ...t, ...updated } : t)));
-      setResubmitTarget(null);
-      setNewLink("");
+      setTasks(await getMyTasks());
     } catch {
       // handled globally
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">My Tasks</h1>
-      <div className="border rounded-lg bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Job</TableHead>
-              <TableHead>Reward</TableHead>
-              <TableHead>Submission</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-6 text-gray-500">You haven&apos;t submitted any tasks yet</TableCell></TableRow>
-            ) : (
-              tasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium">{task.job.title}</TableCell>
-                  <TableCell>${task.job.reward}</TableCell>
-                  <TableCell>
-                    <a href={task.submissionLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">View link</a>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyles[task.status]}`}>{task.status}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {task.status === "REJECTED" && (
-                      resubmitTarget === task.job.id ? (
-                        <div className="flex gap-2 justify-end">
-                          <Input placeholder="New submission link" value={newLink} onChange={(e) => setNewLink(e.target.value)} className="w-48" />
-                          <Button size="sm" disabled={isSubmitting} onClick={() => handleResubmit(task.job.id)}>
-                            {isSubmitting ? "Sending..." : "Resend"}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={() => setResubmitTarget(task.job.id)}>Resubmit</Button>
-                      )
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const patchTask = (updated: TTask) => {
+    setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+  };
+
+  const handleCompleteStep = async (task: TTask, step: TTaskStep) => {
+    if (step.status === "COMPLETED") return;
+    try {
+      const updated = await completeStep(task.id, step.id);
+      patchTask(updated);
+      toast.success("Step completed - progress updated");
+    } catch {
+      // handled globally
+    }
+  };
+
+  const handleSubmitProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submitTarget) return;
+    setSubmitting(true);
+    try {
+      const updated = await submitProof(
+        submitTarget.id,
+        { submissionLink: link || undefined, proofNote: note || undefined },
+        file ?? undefined
+      );
+      patchTask(updated);
+      toast.success("Proof submitted! Waiting for poster approval.");
+      setSubmitTarget(null);
+      setLink("");
+      setNote("");
+      setFile(null);
+    } catch {
+      // handled globally
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="space-y-4">
+        {[0, 1].map((i) => (
+          <div key={i} className="h-32 animate-pulse rounded-xl border border-border bg-card" />
+        ))}
       </div>
+    );
+
+  if (tasks.length === 0)
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
+        <p className="font-medium text-foreground">No active tasks yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          You haven&apos;t applied to any jobs — explore the Job Feed to get started.
+        </p>
+      </div>
+    );
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">My Tasks</h1>
+        <Badge variant="secondary">{tasks.length} task{tasks.length === 1 ? "" : "s"}</Badge>
+      </div>
+
+      {tasks.map((task) => (
+        <div key={task.id} className="card-shadow space-y-4 rounded-xl border border-border bg-card p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {task.job.postedBy.avatarUrl ? (
+                <Image src={task.job.postedBy.avatarUrl} alt="" width={36} height={36} className="rounded-full" />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent font-semibold text-accent-foreground">
+                  {task.job.postedBy.name[0]}
+                </div>
+              )}
+              <div>
+                <h2 className="font-semibold tracking-tight">{task.job.title}</h2>
+                <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  {task.job.postedBy.name} {task.job.postedBy.isVerified && <VerifiedBadge size={10} />}
+                </p>
+              </div>
+            </div>
+            <Badge variant={statusBadge[task.status]} className="shrink-0">
+              {task.status.replace("_", " ")}
+            </Badge>
+          </div>
+
+          {/* Progress bar */}
+          <div>
+            <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Progress</span>
+              <span className="font-semibold text-foreground">{task.progress}%</span>
+            </div>
+            <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  task.progress === 100 ? "bg-emerald-500" : "bg-primary"
+                )}
+                style={{ width: `${task.progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Steps */}
+          {task.taskSteps.length > 0 && (
+            <ul className="space-y-2">
+              {task.taskSteps
+                .slice()
+                .sort((a, b) => a.order - b.order)
+                .map((step) => {
+                  const done = step.status === "COMPLETED";
+                  return (
+                    <li key={step.id} className="flex items-start gap-3">
+                      {task.status === "IN_PROGRESS" || task.status === "PENDING" ? (
+                        <Checkbox
+                          checked={done}
+                          disabled={task.status !== "IN_PROGRESS" || done}
+                          onChange={() => void handleCompleteStep(task, step)}
+                          className="mt-0.5"
+                        />
+                      ) : (
+                        <span
+                          className={cn(
+                            "mt-0.5 flex h-4 w-4 items-center justify-center rounded border text-[10px]",
+                            done ? "border-emerald-500 bg-emerald-500 text-white" : "border-input"
+                          )}
+                        >
+                          {done ? "✓" : ""}
+                        </span>
+                      )}
+                      <div>
+                        <p className={cn("text-sm font-medium", done && "text-muted-foreground line-through")}>
+                          {step.title}
+                        </p>
+                        {step.description && <p className="text-xs text-muted-foreground">{step.description}</p>}
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
+          )}
+
+          {/* proof link/file */}
+          {(task.submissionLink || task.proofFileUrl || task.proofNote) && (
+            <div className="space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+              {task.submissionLink && (
+                <p>
+                  <span className="font-medium text-foreground">Submission:</span>{" "}
+                  <a href={task.submissionLink} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                    {task.submissionLink}
+                  </a>
+                </p>
+              )}
+              {task.proofFileUrl && (
+                <p>
+                  <span className="font-medium text-foreground">Proof file:</span>{" "}
+                  <a href={task.proofFileUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                    View file
+                  </a>
+                </p>
+              )}
+              {task.proofNote && <p className="whitespace-pre-line">{task.proofNote}</p>}
+            </div>
+          )}
+
+          {task.rejectionNote && (
+            <p className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              Rejection note: {task.rejectionNote}
+            </p>
+          )}
+
+          {/* action buttons */}
+          {task.status === "IN_PROGRESS" && (
+            <div className="flex justify-end">
+              <Button onClick={() => setSubmitTarget(task)} disabled={task.taskSteps.length > 0 && task.progress < 100}>
+                {task.taskSteps.length > 0 && task.progress < 100 ? "Finish steps to submit" : "Submit Proof"}
+              </Button>
+            </div>
+          )}
+          {task.status === "APPROVED" && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-right text-sm font-medium text-emerald-700">
+              Approved — ৳{task.job.reward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credited to wallet
+            </p>
+          )}
+        </div>
+      ))}
+
+      {submitTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSubmitTarget(null)}>
+          <form
+            className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-lift"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleSubmitProof}
+          >
+            <h2 className="text-lg font-semibold tracking-tight">Submit proof — {submitTarget.job.title}</h2>
+            {submitTarget.taskSteps.length > 0 && (
+              <p className="text-xs text-muted-foreground">All steps must be completed before submitting.</p>
+            )}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Submission Link</label>
+              <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Proof Note</label>
+              <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Describe what you completed..." />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Proof File (screenshot)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-accent"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setSubmitTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting} isLoading={submitting}>
+                {submitting ? "Submitting..." : "Submit"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

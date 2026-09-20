@@ -3,13 +3,26 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { createJob, updateJob } from "./jobApi";
-import { TJob, TJobFormValues } from "./types";
+import { TJob, TJobFormValues, categoryLabels } from "./types";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
+import { Select } from "../../components/ui/select";
 import { Dialog } from "../../components/ui/dialog";
 
-const emptyForm: TJobFormValues = { title: "", description: "", reward: 0, proofRequirements: "" };
+const emptyForm: TJobFormValues = {
+  title: "",
+  description: "",
+  requirements: "",
+  proofRequirements: "",
+  reward: 0,
+  category: "OTHER",
+  deadline: "",
+  steps: "",
+};
+
+const stepsHelp =
+  "Bolded milestones that drive each participant's progress bar, e.g. [{\"title\":\"Research\",\"description\":\"Gather data\"},{\"title\":\"Draft\",\"description\":\"Write draft\"}].";
 
 type TJobFormDialogProps = { mode: "create" | "edit"; job?: TJob; onSuccess: (job: TJob) => void };
 
@@ -24,13 +37,26 @@ export default function JobFormDialog({ mode, job, onSuccess }: TJobFormDialogPr
       setFormData({
         title: job.title,
         description: job.description,
-        reward: job.reward,
+        requirements: job.requirements ?? "",
         proofRequirements: job.proofRequirements,
+        reward: job.reward,
+        category: job.category,
+        deadline: job.deadline ? job.deadline.slice(0, 10) : "",
+        steps: job.steps
+          ? JSON.stringify(
+              job.steps
+                .slice()
+                .sort((a, b) => a.order - b.order)
+                .map((s) => ({ title: s.title, description: s.description ?? "" })),
+              null,
+              2
+            )
+          : "",
       });
     }
   }, [mode, job]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: name === "reward" ? Number(value) : value }));
   };
@@ -64,28 +90,53 @@ export default function JobFormDialog({ mode, job, onSuccess }: TJobFormDialogPr
 
       <Dialog open={open} onOpenChange={setOpen} title={mode === "create" ? "Post a New Job" : "Edit Job"}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+          <div className="space-y-1.5">
             <label className="text-sm font-medium">Title</label>
             <Input name="title" value={formData.title} onChange={handleChange} required minLength={3} />
           </div>
-          <div>
+          <div className="space-y-1.5">
             <label className="text-sm font-medium">Description</label>
             <Textarea name="description" value={formData.description} onChange={handleChange} required minLength={10} rows={4} />
           </div>
-          <div>
-            <label className="text-sm font-medium">Reward ($)</label>
-            <Input type="number" name="reward" value={formData.reward} onChange={handleChange} required min={1} step="0.01" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Reward (৳)</label>
+              <Input type="number" name="reward" value={formData.reward} onChange={handleChange} required min={1} step="0.01" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Deadline</label>
+              <Input type="date" name="deadline" value={formData.deadline} onChange={handleChange} />
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium">Proof Requirements</label>
-            <Textarea name="proofRequirements" value={formData.proofRequirements} onChange={handleChange} required rows={3} />
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Category</label>
+            <Select className="w-full" name="category" value={formData.category} onChange={handleChange}>
+              {Object.entries(categoryLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
           </div>
-          <div>
-            <label className="text-sm font-medium">Job Image (optional)</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Requirements</label>
+            <Textarea name="requirements" value={formData.requirements} onChange={handleChange} rows={2} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Proof requirements</label>
+            <Textarea name="proofRequirements" value={formData.proofRequirements} onChange={handleChange} required rows={2} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Milestones (JSON)</label>
+            <Textarea name="steps" value={formData.steps} onChange={handleChange} rows={4} placeholder='[{"title":"Step 1","description":"..."}]' />
+            <p className="mt-1 text-xs text-muted-foreground">{stepsHelp}</p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Job image (optional)</label>
             <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Saving..." : mode === "create" ? "Post Job" : "Save Changes"}
+          <Button type="submit" className="w-full" disabled={isLoading} isLoading={isLoading}>
+            {isLoading ? "Saving..." : mode === "create" ? "Post job" : "Save changes"}
           </Button>
         </form>
       </Dialog>

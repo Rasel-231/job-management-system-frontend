@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getAllUsers, updateUserStatus } from "./userApi";
+import { getAllUsers, updateUserStatus, updateUserWarning } from "./userApi";
 import { TUserRow } from "./types";
+import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import Pagination from "../../components/shared/Pagination";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
+import { Badge, type TBadgeVariant } from "../../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
-const statusStyles: Record<TUserRow["status"], string> = {
-  PENDING: "bg-yellow-100 text-yellow-700",
-  ACTIVE: "bg-green-100 text-green-700",
-  BLOCKED: "bg-red-100 text-red-700",
+const statusBadge: Record<TUserRow["status"], TBadgeVariant> = {
+  PENDING: "warning",
+  ACTIVE: "success",
+  BLOCKED: "destructive",
 };
 
 export default function UserApprovalClient({ initialUsers }: { initialUsers: TUserRow[] }) {
@@ -27,7 +29,11 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
-        const res = await getAllUsers(filter, page, 10);
+        const res = await getAllUsers(
+          { status: filter !== "ALL" ? filter : undefined },
+          page,
+          10
+        );
         setUsers(res.data ?? []);
         setTotalPages(res.meta?.totalPages ?? 1);
       } catch {
@@ -52,10 +58,23 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
     }
   };
 
+  const handleWarning = async (id: string, action: "warn" | "clear") => {
+    setUpdatingId(id);
+    try {
+      const updated = await updateUserWarning(id, action);
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, warnings: updated.warnings } : u)));
+      toast.success(action === "warn" ? "Warning issued" : "Warnings cleared");
+    } catch {
+      // handled globally
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">User Approval</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Manage users</h1>
         <Select
           value={filter}
           onChange={(e) => {
@@ -71,39 +90,55 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
         </Select>
       </div>
 
-      <div className="border rounded-lg bg-white">
+      <div className="card-shadow overflow-hidden rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
+              <TableHead>Warnings</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-gray-500">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
             ) : users.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-gray-500">No users found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">No users found</TableCell></TableRow>
             ) : (
               users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.role}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyles[user.status]}`}>{user.status}</span>
+                    <p className="inline-flex items-center gap-1 font-medium">
+                      {user.name}
+                      {user.isVerified && <VerifiedBadge size={12} />}
+                    </p>
                   </TableCell>
-                  <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right space-x-2">
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="text-xs">
+                    {user.accountType.replace("_", " ")}
+                    {user.phone && <span className="block text-muted-foreground">{user.phone}</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusBadge[user.status]}>{user.status}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className={user.warnings > 0 ? "font-semibold text-amber-600" : "text-muted-foreground"}>{user.warnings}</span>
+                  </TableCell>
+                  <TableCell className="space-x-1 whitespace-nowrap text-right">
                     {user.status !== "ACTIVE" && (
                       <Button size="sm" disabled={updatingId === user.id} onClick={() => handleStatusChange(user.id, "ACTIVE")}>Approve</Button>
                     )}
                     {user.status !== "BLOCKED" && (
                       <Button size="sm" variant="destructive" disabled={updatingId === user.id} onClick={() => handleStatusChange(user.id, "BLOCKED")}>Block</Button>
+                    )}
+                    {user.status !== "BLOCKED" && user.warnings === 0 && (
+                      <Button size="sm" variant="outline" disabled={updatingId === user.id} onClick={() => handleWarning(user.id, "warn")}>Warn</Button>
+                    )}
+                    {user.warnings > 0 && (
+                      <Button size="sm" variant="outline" disabled={updatingId === user.id} onClick={() => handleWarning(user.id, "clear")}>Clear</Button>
                     )}
                   </TableCell>
                 </TableRow>
