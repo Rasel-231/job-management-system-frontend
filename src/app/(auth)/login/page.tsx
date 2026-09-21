@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import { loginUser } from "../../../features/auth/authApi";
 import { useAppDispatch } from "../../../redux/hooks";
@@ -13,6 +13,8 @@ import { Input } from "../../../components/ui/input";
 // CLIENT COMPONENT — needs form state, Redux dispatch, and router navigation.
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo");
   const dispatch = useAppDispatch();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +31,11 @@ export default function LoginPage() {
       if (res.data) {
         dispatch(setUser(res.data.user));
         toast.success("Logged in successfully");
-        router.push(res.data.user.role === "ADMIN" ? "/admin/jobs" : "/dashboard/jobs");
+        if (redirectTo) {
+          router.push(redirectTo);
+        } else {
+          router.push(res.data.user.role === "ADMIN" ? "/admin/jobs" : "/jobs");
+        }
       }
     } catch {
       // handled globally by axiosInstance
@@ -65,7 +71,7 @@ export default function LoginPage() {
         <div className="h-px flex-1 bg-border" />
       </div>
 
-      <SocialLoginButtons accountType="JOB_SEEKER" redirectBase={() => "/dashboard/jobs"} />
+      <SocialLoginButtons accountType="JOB_SEEKER" redirectBase={() => redirectTo ?? "/jobs"} />
 
       <p className="text-sm text-center text-muted-foreground">
         Don&apos;t have an account?{" "}

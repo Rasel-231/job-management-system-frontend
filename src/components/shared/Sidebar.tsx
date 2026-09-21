@@ -19,12 +19,14 @@ const adminLinks: TSidebarLink[] = [
 ];
 
 const userLinks: TSidebarLink[] = [
-  { label: "Job Feed", href: "/dashboard/jobs", icon: "briefcase" },
+  { label: "Overview", href: "/dashboard", icon: "grid" },
+  { label: "Job Feed", href: "/jobs", icon: "briefcase" },
   { label: "My Tasks", href: "/dashboard/my-tasks", icon: "checklist" },
-  { label: "My Posted Jobs", href: "/dashboard/my-jobs", icon: "grid" },
+  { label: "My Posted Jobs", href: "/dashboard/my-jobs", icon: "history" },
   { label: "Wallet & Earnings", href: "/dashboard/earnings", icon: "wallet" },
   { label: "Verification", href: "/dashboard/verification", icon: "shield" },
   { label: "Disputes", href: "/dashboard/disputes", icon: "scale" },
+  { label: "Profile", href: "/dashboard/profile", icon: "user" },
 ];
 
 export default function Sidebar({ role }: { role: "ADMIN" | "USER" }) {

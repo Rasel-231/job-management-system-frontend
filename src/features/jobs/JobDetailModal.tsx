@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import { TJob, categoryLabels } from "./types";
+import { useAppSelector } from "../../redux/hooks";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import { applyForJob } from "../tasks/taskApi";
 import { Badge } from "../../components/ui/badge";
@@ -15,11 +18,18 @@ type TJobDetailModalProps = {
 };
 
 export default function JobDetailModal({ job, onClose }: TJobDetailModalProps) {
+  const router = useRouter();
+  const user = useAppSelector((state) => state.auth.user);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
 
   const handleApply = async () => {
     if (!job) return;
+    if (!user) {
+      toast.info("Login required to apply");
+      router.push("/login");
+      return;
+    }
     setApplying(true);
     try {
       await applyForJob(job.id);

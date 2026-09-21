@@ -22,6 +22,16 @@ const processQueue = (error: unknown, success = false) => {
   failedQueue = [];
 };
 
+// httpOnly refreshToken cookie cannot be read by JS, but we can at least check
+// whether it exists. If the browser has no refreshToken at all there is nothing
+// to refresh — skip the silent-refresh + redirect path entirely so the
+// AuthRehydrator's /auth/me 401 just resolves to "logged out" instead of
+// sending the page into an endless reload loop.
+const hasRefreshCookie = (): boolean => {
+  if (typeof document === "undefined") return false;
+  return new RegExp("(?:^|; )refreshToken=[^;]").test(document.cookie);
+};
+
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ message?: string }>) => {
@@ -31,7 +41,12 @@ axiosInstance.interceptors.response.use(
       originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/refresh-token");
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthEndpoint &&
+      hasRefreshCookie()
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({
@@ -51,7 +66,12 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, false);
         toast.error("Session expired. Please log in again.");
-        if (typeof window !== "undefined") window.location.href = "/login";
+        // Single redirect — never reload the current URL. Guarded so a dead
+        // refreshToken can't bounce /login into itself in an endless loop.
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          const loginUrl = `/login${window.location.pathname !== "/" ? `?redirectTo=${encodeURIComponent(window.location.pathname)}` : ""}`;
+          window.location.replace(loginUrl);
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

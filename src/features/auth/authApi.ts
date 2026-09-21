@@ -63,6 +63,7 @@ export const updateMyProfile = async (payload: {
   name?: string;
   bio?: string;
   skillTags?: string[];
+  avatarUrl?: string;
   phone?: string;
   accountType?: TAccountType;
 }): Promise<TUser> => {

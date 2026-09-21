@@ -1,5 +1,6 @@
-import JobMarketClient from "../../../../features/jobs/JobMarketClient";
+import { redirect } from "next/navigation";
 
-export default function JobMarketPage() {
-  return <JobMarketClient />;
+// Kept for legacy deep links — the job feed now lives at the public /jobs route.
+export default function JobMarketRedirect() {
+  redirect("/jobs");
 }

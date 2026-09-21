@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "../components/ui/badge";
+import ThemeToggle from "../components/shared/ThemeToggle";
 
 const features = [
   {
@@ -35,6 +36,13 @@ export default function HomePage() {
           Job<span className="text-primary">Stack</span>
         </span>
         <nav className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link
+            href="/jobs"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Browse jobs
+          </Link>
           <Link
             href="/login"
             className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
@@ -76,10 +84,10 @@ export default function HomePage() {
             Create free account
           </Link>
           <Link
-            href="/login"
+            href="/jobs"
             className="rounded-lg border border-input bg-card px-6 py-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-accent"
           >
-            I already have an account
+            Browse open jobs
           </Link>
         </div>
 

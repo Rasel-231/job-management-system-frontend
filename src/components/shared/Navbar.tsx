@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { logout } from "../../features/auth/authSlice";
 import { logoutUser } from "../../features/auth/authApi";
 import VerifiedBadge from "./VerifiedBadge";
+import ThemeToggle from "./ThemeToggle";
 import { Button } from "../ui/button";
 import { Icon } from "../ui/icons";
 import { cn } from "../../lib/utils";
@@ -42,26 +43,50 @@ export default function Navbar() {
         Job<span className="text-primary">Stack</span>
       </Link>
       <div className="flex items-center gap-4">
-        {user && (
-          <div className="text-right">
-            <p className="inline-flex items-center gap-1.5 text-sm font-medium">
-              {user.name}
-              {user.isVerified && <VerifiedBadge size={12} />}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {user.role === "ADMIN" ? "Administrator" : roleLabels[user.accountType]}
-              {!user.isVerified && user.role !== "ADMIN" && (
-                <Link href="/dashboard/verification" className={cn("ml-1.5 font-medium text-primary hover:underline")}>
-                  Verify now
-                </Link>
-              )}
-            </p>
-          </div>
+        <ThemeToggle />
+        {user ? (
+          <>
+            <div className="text-right">
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium">
+                {user.name}
+                {user.isVerified && <VerifiedBadge size={12} />}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {user.role === "ADMIN" ? "Administrator" : roleLabels[user.accountType]}
+                {!user.isVerified && user.role !== "ADMIN" && (
+                  <Link href="/dashboard/verification" className={cn("ml-1.5 font-medium text-primary hover:underline")}>
+                    Verify now
+                  </Link>
+                )}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
+              <Icon name="logout" className="h-3.5 w-3.5" />
+              Logout
+            </Button>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/jobs"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Browse jobs
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              Login
+            </Link>
+            <Link
+              href="/register"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.98]"
+            >
+              Get started
+            </Link>
+          </>
         )}
-        <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
-          <Icon name="logout" className="h-3.5 w-3.5" />
-          Logout
-        </Button>
       </div>
     </header>
   );

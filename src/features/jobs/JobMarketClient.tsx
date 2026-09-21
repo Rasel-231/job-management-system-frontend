@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { getFeedJobs, toggleLike, addComment, getComments } from "./jobApi";
 import { TJob, TJobComment, categoryLabels } from "./types";
+import { useAppSelector } from "../../redux/hooks";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import JobDetailModal from "./JobDetailModal";
 import { Input } from "../../components/ui/input";
@@ -17,6 +19,8 @@ import { cn } from "../../lib/utils";
 const emptyCategory = "__ALL__";
 
 export default function JobMarketClient() {
+  const router = useRouter();
+  const user = useAppSelector((state) => state.auth.user);
   const [jobs, setJobs] = useState<TJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(emptyCategory);
@@ -52,7 +56,15 @@ export default function JobMarketClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
+  const requireLogin = () => {
+    if (user) return true;
+    toast.info("Login required");
+    router.push("/login");
+    return false;
+  };
+
   const handleLike = async (job: TJob) => {
+    if (!requireLogin()) return;
     const prev = { liked: job.isLiked, count: job.likeCount };
     setJobs((prevJobs) =>
       prevJobs.map((j) =>
@@ -74,6 +86,7 @@ export default function JobMarketClient() {
   };
 
   const handleComment = async (jobId: string) => {
+    if (!requireLogin()) return;
     const content = commentInput[jobId]?.trim();
     if (!content) return;
     try {
@@ -102,7 +115,7 @@ export default function JobMarketClient() {
 
   const handleShare = async (job: TJob) => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/dashboard/jobs/${job.id}`);
+      await navigator.clipboard.writeText(`${window.location.origin}/jobs/${job.id}`);
       toast.success("Job link copied to clipboard");
     } catch {
       toast.error("Could not copy link");
@@ -238,17 +251,26 @@ export default function JobMarketClient() {
                     </div>
                   </div>
                 ))}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Write a comment..."
-                  value={commentInput[job.id] ?? ""}
-                  onChange={(e) => setCommentInput((prev) => ({ ...prev, [job.id]: e.target.value }))}
-                  onKeyDown={(e) => e.key === "Enter" && void handleComment(job.id)}
-                />
-                <Button size="sm" variant="secondary" onClick={() => void handleComment(job.id)}>
-                  Post
-                </Button>
-              </div>
+              {user ? (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Write a comment..."
+                    value={commentInput[job.id] ?? ""}
+                    onChange={(e) => setCommentInput((prev) => ({ ...prev, [job.id]: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && void handleComment(job.id)}
+                  />
+                  <Button size="sm" variant="secondary" onClick={() => void handleComment(job.id)}>
+                    Post
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={requireLogin}
+                  className="w-full text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Login to join the discussion
+                </button>
+              )}
             </div>
           )}
         </article>

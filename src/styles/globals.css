@@ -32,6 +32,36 @@
   --ring: 243 75% 59%;
 }
 
+.dark {
+  --background: 222 30% 6%;
+  --foreground: 220 20% 94%;
+
+  --card: 222 26% 9%;
+  --card-foreground: 220 20% 94%;
+
+  --popover: 222 26% 9%;
+  --popover-foreground: 220 20% 94%;
+
+  --primary: 245 78% 72%;
+  --primary-foreground: 222 47% 8%;
+
+  --secondary: 222 26% 14%;
+  --secondary-foreground: 220 20% 94%;
+
+  --muted: 222 26% 14%;
+  --muted-foreground: 218 12% 62%;
+
+  --accent: 243 40% 24%;
+  --accent-foreground: 243 82% 82%;
+
+  --destructive: 0 62% 48%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 222 26% 16%;
+  --input: 222 26% 21%;
+  --ring: 245 78% 72%;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

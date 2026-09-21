@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && isAdminPath && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard/jobs", request.url));
+    return NextResponse.redirect(new URL("/jobs", request.url));
   }
 
   if (isAuthenticated && isUserPath && role !== "USER") {
@@ -37,7 +37,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && isAuthPath) {
-    const destination = role === "ADMIN" ? "/admin/jobs" : "/dashboard/jobs";
+    const destination = role === "ADMIN" ? "/admin/jobs" : "/jobs";
     return NextResponse.redirect(new URL(destination, request.url));
   }
 

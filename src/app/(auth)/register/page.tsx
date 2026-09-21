@@ -43,7 +43,7 @@ export default function RegisterPage() {
       if (res.data) {
         dispatch(setUser(res.data.user));
         toast.success("Registration successful! Welcome aboard.");
-        router.push("/dashboard/jobs");
+        router.push("/jobs");
       }
     } catch {
       // handled globally
@@ -112,7 +112,7 @@ export default function RegisterPage() {
 
       <SocialLoginButtons
         accountType={formData.accountType}
-        redirectBase={() => "/dashboard/jobs"}
+        redirectBase={() => "/jobs"}
       />
 
       <p className="text-sm text-center text-muted-foreground">
