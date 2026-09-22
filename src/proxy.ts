@@ -9,7 +9,6 @@ import type { NextRequest } from "next/server";
 // (no session, wrong role section) from ever reaching React.
 const adminPaths = ["/admin"];
 const userPaths = ["/dashboard"];
-const authPaths = ["/login", "/register"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -20,7 +19,6 @@ export async function proxy(request: NextRequest) {
   const isAuthenticated = Boolean(refreshToken);
   const isAdminPath = adminPaths.some((p) => pathname.startsWith(p));
   const isUserPath = userPaths.some((p) => pathname.startsWith(p));
-  const isAuthPath = authPaths.some((p) => pathname.startsWith(p));
 
   if (!isAuthenticated && (isAdminPath || isUserPath)) {
     const loginUrl = new URL("/login", request.url);
@@ -34,11 +32,6 @@ export async function proxy(request: NextRequest) {
 
   if (isAuthenticated && isUserPath && role !== "USER") {
     return NextResponse.redirect(new URL("/admin/jobs", request.url));
-  }
-
-  if (isAuthenticated && isAuthPath) {
-    const destination = role === "ADMIN" ? "/admin/jobs" : "/jobs";
-    return NextResponse.redirect(new URL(destination, request.url));
   }
 
   return NextResponse.next();

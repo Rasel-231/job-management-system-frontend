@@ -1,7 +1,8 @@
 import PageTransition from "../../components/shared/PageTransition";
 
 // (auth) route group layout — Server Component. Centers auth forms on a
-// subtle brand-graded backdrop. proxy.ts already keeps authed users out.
+// subtle brand-graded backdrop. /login is always reachable so a stale
+// refreshToken cookie can't trap logged-out users in a redirect loop.
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
