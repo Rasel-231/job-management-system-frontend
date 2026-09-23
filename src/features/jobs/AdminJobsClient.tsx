@@ -10,6 +10,7 @@ import Can from "../../components/shared/Can";
 import { Permission } from "../../lib/permissions";
 import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }) {
@@ -48,6 +49,7 @@ export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Image</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Reward</TableHead>
               <TableHead>Posted By</TableHead>
@@ -57,11 +59,20 @@ export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }
           <TableBody>
             {jobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">No jobs posted yet</TableCell>
+                <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">No jobs posted yet</TableCell>
               </TableRow>
             ) : (
               jobs.map((job) => (
                 <TableRow key={job.id}>
+                  <TableCell>
+                    {job.imageUrl ? (
+                      <Image src={job.imageUrl} alt={job.title} width={48} height={32} className="h-8 w-12 rounded object-cover" />
+                    ) : (
+                      <div className="flex h-8 w-12 items-center justify-center rounded border border-dashed border-border text-xs text-muted-foreground">
+                        -
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">
                     <Link href={`/admin/jobs/${job.id}`} className="transition-colors hover:text-primary hover:underline">{job.title}</Link>
                   </TableCell>
