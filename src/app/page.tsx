@@ -33,7 +33,7 @@ export default function HomePage() {
 
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
         <span className="text-lg font-bold tracking-tight">
-          Job<span className="text-primary">Stack</span>
+          Pay<span className="text-primary">Task</span>
         </span>
         <nav className="flex items-center gap-3">
           <ThemeToggle />
@@ -64,16 +64,16 @@ export default function HomePage() {
         </Badge>
 
         <h1 className="max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-          Earn money one{" "}
+          Complete milestones, earn money, get paid instantly with{" "}
           <span className="bg-gradient-to-r from-primary to-fuchsia-600 bg-clip-text text-transparent">
-            milestone
-          </span>{" "}
-          at a time
+            PayTask
+          </span>
         </h1>
 
         <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-          Post jobs with proof-based steps, complete tasks phase by phase, and get paid to your wallet the
-          moment your work is approved.
+          Post tasks with proof-based milestones, complete them phase by phase, and receive your payment
+          directly to your wallet the moment your work is approved — with PayTask, every completed task
+          means instant, guaranteed pay.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -116,7 +116,7 @@ export default function HomePage() {
       <footer className="border-t border-border/70 py-6 text-center text-xs text-muted-foreground">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-6 sm:flex-row">
           <span>
-            Job<span className="font-semibold text-primary">Stack</span>
+            Pay<span className="font-semibold text-primary">Task</span>
           </span>
           <span>© {new Date().getFullYear()} — Secure, milestone-based freelancing.</span>
         </div>

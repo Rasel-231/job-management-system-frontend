@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { registerUser } from "../../../features/auth/authApi";
+import { registerAction } from "../../../features/auth/actions";
 import { useAppDispatch } from "../../../redux/hooks";
 import { setUser } from "../../../features/auth/authSlice";
 import type { TAccountType } from "../../../features/auth/types";
 import SocialLoginButtons from "../../../components/shared/SocialLoginButtons";
+import BackButton from "../../../components/shared/BackButton";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 
@@ -39,14 +40,16 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await registerUser(formData);
-      if (res.data) {
-        dispatch(setUser(res.data.user));
+      const res = await registerAction(formData);
+      if (res.ok) {
+        dispatch(setUser(res.user));
         toast.success("Registration successful! Welcome aboard.");
         router.push("/jobs");
+      } else {
+        toast.error(res.error);
       }
     } catch {
-      // handled globally
+      toast.error("Could not create your account");
     } finally {
       setIsLoading(false);
     }
@@ -54,9 +57,10 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full max-w-md space-y-5 rounded-2xl border border-border bg-card p-7 shadow-soft">
+      <BackButton className="self-start" />
       <div className="text-center">
         <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Join JobStack in under a minute</p>
+        <p className="mt-1 text-sm text-muted-foreground">Join PayTask in under a minute</p>
       </div>
 
       <div>
@@ -97,7 +101,8 @@ export default function RegisterPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Password</label>
-          <Input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Minimum 6 characters" autoComplete="new-password" required minLength={6} />
+          <Input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Min 8 chars: A-Z, a-z, 0-9" autoComplete="new-password" required minLength={8} />
+          <p className="text-xs text-muted-foreground">At least 8 characters, includes an uppercase letter, a lowercase letter and a number.</p>
         </div>
         <Button type="submit" className="w-full" isLoading={isLoading}>
           {isLoading ? "Creating account..." : "Create account"}

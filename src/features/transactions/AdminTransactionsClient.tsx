@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAllTransactions } from "./transactionApi";
 import { TTransaction } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import { usePushToUrl } from "../../lib/useUrlState";
 import { Select } from "../../components/ui/select";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
@@ -13,32 +13,36 @@ const typeBadge: Record<string, TBadgeVariant> = {
   WITHDRAWAL: "info",
 };
 
-export default function AdminTransactionsClient({ initialTransactions }: { initialTransactions: TTransaction[] }) {
+type TAdminTransactionsClientProps = {
+  initialTransactions: TTransaction[];
+  initialFilter: string;
+  initialPage: number;
+  initialTotalPages: number;
+};
+
+export default function AdminTransactionsClient({
+  initialTransactions,
+  initialFilter,
+  initialPage,
+  initialTotalPages,
+}: TAdminTransactionsClientProps) {
   const [transactions, setTransactions] = useState<TTransaction[]>(initialTransactions);
-  const [typeFilter, setTypeFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [typeFilter, setTypeFilter] = useState(initialFilter);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const pushToUrl = usePushToUrl();
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      setIsLoading(true);
-      try {
-        const res = await getAllTransactions(
-          typeFilter !== "ALL" ? { type: typeFilter } : undefined,
-          page,
-          10
-        );
-        setTransactions(res.data ?? []);
-        setTotalPages(res.meta?.totalPages ?? 1);
-      } catch {
-        // handled globally
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [typeFilter, page]);
+    setTransactions(initialTransactions);
+    setTypeFilter(initialFilter);
+    setPage(initialPage);
+    setTotalPages(initialTotalPages);
+  }, [initialTransactions, initialFilter, initialPage, initialTotalPages]);
+
+  const changeFilter = (value: string) => {
+    setTypeFilter(value);
+    pushToUrl({ filter: value, page: 1 });
+  };
 
   const totalPayout = transactions.filter((t) => t.type === "EARNING").reduce((sum, t) => sum + t.amount, 0);
 
@@ -51,7 +55,7 @@ export default function AdminTransactionsClient({ initialTransactions }: { initi
             Total paid out (this page): <span className="font-medium text-foreground">৳{totalPayout.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </p>
         </div>
-        <Select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} className="w-40">
+        <Select value={typeFilter} onChange={(e) => changeFilter(e.target.value)} className="w-40">
           <option value="ALL">All Types</option>
           <option value="EARNING">Earnings</option>
           <option value="WITHDRAWAL">Withdrawals</option>
@@ -70,9 +74,7 @@ export default function AdminTransactionsClient({ initialTransactions }: { initi
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
-            ) : transactions.length === 0 ? (
+            {transactions.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">No transactions found</TableCell></TableRow>
             ) : (
               transactions.map((tx) => (
@@ -92,7 +94,7 @@ export default function AdminTransactionsClient({ initialTransactions }: { initi
             )}
           </TableBody>
         </Table>
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter: typeFilter, page: p })} />
       </div>
     </div>
   );

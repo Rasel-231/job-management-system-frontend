@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getAllUsers, updateUserStatus, updateUserWarning } from "./userApi";
+import { updateUserStatusAction, updateUserWarningAction } from "./actions";
 import { TUserRow } from "./types";
+import UserDetailModal from "./UserDetailModal";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import Pagination from "../../components/shared/Pagination";
+import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
@@ -17,42 +19,48 @@ const statusBadge: Record<TUserRow["status"], TBadgeVariant> = {
   BLOCKED: "destructive",
 };
 
-export default function UserApprovalClient({ initialUsers }: { initialUsers: TUserRow[] }) {
+type TUserApprovalClientProps = {
+  initialUsers: TUserRow[];
+  initialFilter: string;
+  initialPage: number;
+  initialTotalPages: number;
+};
+
+export default function UserApprovalClient({
+  initialUsers,
+  initialFilter,
+  initialPage,
+  initialTotalPages,
+}: TUserApprovalClientProps) {
   const [users, setUsers] = useState<TUserRow[]>(initialUsers);
-  const [filter, setFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [filter, setFilter] = useState(initialFilter);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<TUserRow | null>(null);
+  const pushToUrl = usePushToUrl();
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      setIsLoading(true);
-      try {
-        const res = await getAllUsers(
-          { status: filter !== "ALL" ? filter : undefined },
-          page,
-          10
-        );
-        setUsers(res.data ?? []);
-        setTotalPages(res.meta?.totalPages ?? 1);
-      } catch {
-        // handled globally
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchUsers();
-  }, [filter, page]);
+    setUsers(initialUsers);
+    setFilter(initialFilter);
+    setPage(initialPage);
+    setTotalPages(initialTotalPages);
+  }, [initialUsers, initialFilter, initialPage, initialTotalPages]);
+
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    pushToUrl({ filter: value, page: 1 });
+  };
 
   const handleStatusChange = async (id: string, status: "ACTIVE" | "BLOCKED") => {
     setUpdatingId(id);
     try {
-      const updated = await updateUserStatus(id, status);
+      const updated = await updateUserStatusAction(id, status);
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status: updated.status } : u)));
+      setSelectedUser((prev) => (prev && prev.id === id ? { ...prev, status: updated.status } : prev));
       toast.success(`User ${status.toLowerCase()} successfully`);
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update user");
     } finally {
       setUpdatingId(null);
     }
@@ -61,28 +69,30 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
   const handleWarning = async (id: string, action: "warn" | "clear") => {
     setUpdatingId(id);
     try {
-      const updated = await updateUserWarning(id, action);
+      const updated = await updateUserWarningAction(id, action);
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, warnings: updated.warnings } : u)));
+      setSelectedUser((prev) => (prev && prev.id === id ? { ...prev, warnings: updated.warnings } : prev));
       toast.success(action === "warn" ? "Warning issued" : "Warnings cleared");
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update warning");
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleUpdated = (updated: TUserRow) => {
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+  };
+
+  const handleDeleted = (id: string) => {
+    setUsers((prev) => prev.filter((u) => u.id !== id));
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Manage users</h1>
-        <Select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setPage(1);
-          }}
-          className="w-40"
-        >
+        <Select value={filter} onChange={(e) => changeFilter(e.target.value)} className="w-40">
           <option value="ALL">All Users</option>
           <option value="PENDING">Pending</option>
           <option value="ACTIVE">Active</option>
@@ -103,13 +113,15 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
-            ) : users.length === 0 ? (
+            {users.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">No users found</TableCell></TableRow>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow
+                  key={user.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  onClick={() => setSelectedUser(user)}
+                >
                   <TableCell>
                     <p className="inline-flex items-center gap-1 font-medium">
                       {user.name}
@@ -127,7 +139,7 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
                   <TableCell>
                     <span className={user.warnings > 0 ? "font-semibold text-amber-600" : "text-muted-foreground"}>{user.warnings}</span>
                   </TableCell>
-                  <TableCell className="space-x-1 whitespace-nowrap text-right">
+                  <TableCell className="space-x-1 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                     {user.status !== "ACTIVE" && (
                       <Button size="sm" disabled={updatingId === user.id} onClick={() => handleStatusChange(user.id, "ACTIVE")}>Approve</Button>
                     )}
@@ -146,8 +158,15 @@ export default function UserApprovalClient({ initialUsers }: { initialUsers: TUs
             )}
           </TableBody>
         </Table>
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
+
+      <UserDetailModal
+        user={selectedUser}
+        onOpenChange={(open) => !open && setSelectedUser(null)}
+        onUpdated={handleUpdated}
+        onDeleted={handleDeleted}
+      />
     </div>
   );
 }

@@ -108,7 +108,54 @@ const paths: Record<string, ReactNode> = {
   ),
   moon: (
     <>
-      <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />
+      <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5Z" />
+    </>
+  ),
+  plus: (
+    <>
+      <path d="M12 5v14M5 12h14" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M10 11v6M14 11v6" />
+      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </>
+  ),
+  chevronUp: (
+    <>
+      <path d="m6 15 6-6 6 6" />
+    </>
+  ),
+  chevronDown: (
+    <>
+      <path d="m6 9 6 6 6-6" />
+    </>
+  ),
+  chevronLeft: (
+    <>
+      <path d="m15 6-6 6 6 6" />
+    </>
+  ),
+  grip: (
+    <>
+      <circle cx="9" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="17" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="17" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </>
+  ),
+  x: (
+    <>
+      <path d="m6 6 12 12M18 6 6 18" />
     </>
   ),
 };

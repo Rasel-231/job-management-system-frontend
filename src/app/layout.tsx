@@ -6,8 +6,8 @@ import "react-toastify/dist/ReactToastify.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "JobStack — Milestone-based freelancing",
-    template: "%s · JobStack",
+    default: "PayTask — Milestone-based freelancing",
+    template: "%s · PayTask",
   },
   description:
     "Post jobs with proof-based milestones, complete tasks phase by phase, and withdraw earnings straight to your wallet.",

@@ -1,10 +1,10 @@
-import { serverFetch } from "../../../../lib/serverFetch";
-import { TApiResponse } from "../../../../types/apiResponse";
-import { TJob } from "../../../../features/jobs/types";
+import { getAdminJobs } from "../../../../features/jobs/server";
 import AdminJobsClient from "../../../../features/jobs/AdminJobsClient";
 
-export default async function AdminJobsPage() {
-  const res = await serverFetch<TApiResponse<TJob[]>>("/jobs", { params: { page: 1, limit: 50 } });
+export const dynamic = "force-dynamic";
 
-  return <AdminJobsClient initialJobs={res.data ?? []} />;
+export default async function AdminJobsPage() {
+  const jobs = await getAdminJobs(1, 50);
+
+  return <AdminJobsClient initialJobs={jobs} />;
 }

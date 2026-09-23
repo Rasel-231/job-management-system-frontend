@@ -22,14 +22,16 @@ const processQueue = (error: unknown, success = false) => {
   failedQueue = [];
 };
 
-// httpOnly refreshToken cookie cannot be read by JS, but we can at least check
-// whether it exists. If the browser has no refreshToken at all there is nothing
-// to refresh — skip the silent-refresh + redirect path entirely so the
-// AuthRehydrator's /auth/me 401 just resolves to "logged out" instead of
-// sending the page into an endless reload loop.
-const hasRefreshCookie = (): boolean => {
+// The refreshToken cookie is httpOnly so JS can never see it via
+// document.cookie. Instead we use the non-httpOnly `role` cookie — it is set
+// and cleared together with the tokens — as a reliable "live session" marker.
+// If the browser has no session at all there is nothing to refresh — skip the
+// silent-refresh + redirect path entirely so the AuthRehydrator's /auth/me 401
+// just resolves to "logged out" instead of sending the page into an endless
+// reload loop.
+const hasSessionCookie = (): boolean => {
   if (typeof document === "undefined") return false;
-  return new RegExp("(?:^|; )refreshToken=[^;]").test(document.cookie);
+  return new RegExp("(?:^|; )role=[^;]").test(document.cookie);
 };
 
 axiosInstance.interceptors.response.use(
@@ -45,7 +47,7 @@ axiosInstance.interceptors.response.use(
       error.response?.status === 401 &&
       !originalRequest._retry &&
       !isAuthEndpoint &&
-      hasRefreshCookie()
+      hasSessionCookie()
     ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-toastify";
-import { socialLogin } from "../../features/auth/authApi";
+import { socialLoginAction } from "../../features/auth/actions";
 import { useAppDispatch } from "../../redux/hooks";
 import { setUser } from "../../features/auth/authSlice";
 import { useRouter } from "next/navigation";
@@ -31,14 +31,16 @@ export default function SocialLoginButtons({
 
     const finish = async (token: string) => {
       try {
-        const res = await socialLogin("google", token, accountType);
-        if (res.data) {
-          dispatch(setUser(res.data.user));
+        const res = await socialLoginAction("google", token, accountType);
+        if (res.ok) {
+          dispatch(setUser(res.user));
           toast.success("Logged in with Google");
-          router.push(res.data.user.role === "ADMIN" ? "/admin/jobs" : redirectBase(res.data.user.role));
+          router.push(res.user.role === "ADMIN" ? "/admin/jobs" : redirectBase(res.user.role));
+        } else {
+          toast.error(res.error);
         }
       } catch {
-        // handled globally
+        toast.error("Could not sign in with Google");
       } finally {
         setLoading(null);
       }
@@ -77,14 +79,16 @@ export default function SocialLoginButtons({
 
     const finish = async (token: string) => {
       try {
-        const res = await socialLogin("facebook", token, accountType);
-        if (res.data) {
-          dispatch(setUser(res.data.user));
+        const res = await socialLoginAction("facebook", token, accountType);
+        if (res.ok) {
+          dispatch(setUser(res.user));
           toast.success("Logged in with Facebook");
-          router.push(res.data.user.role === "ADMIN" ? "/admin/jobs" : redirectBase(res.data.user.role));
+          router.push(res.user.role === "ADMIN" ? "/admin/jobs" : redirectBase(res.user.role));
+        } else {
+          toast.error(res.error);
         }
       } catch {
-        // handled globally
+        toast.error("Could not sign in with Facebook");
       } finally {
         setLoading(null);
       }

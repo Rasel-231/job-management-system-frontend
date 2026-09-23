@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getAllTasksAdmin, reviewTask } from "./taskApi";
+import { acceptApplicationAction, reviewTaskAction } from "./actions";
 import { TAdminTask } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
@@ -18,29 +19,50 @@ const statusBadge: Record<TAdminTask["status"], TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function AdminTaskReviewClient() {
-  const [tasks, setTasks] = useState<TAdminTask[]>([]);
-  const [filter, setFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+type TAdminTaskReviewClientProps = {
+  initialTasks: TAdminTask[];
+  initialFilter: string;
+  initialPage: number;
+  initialTotalPages: number;
+};
+
+export default function AdminTaskReviewClient({
+  initialTasks,
+  initialFilter,
+  initialPage,
+  initialTotalPages,
+}: TAdminTaskReviewClientProps) {
+  const [tasks, setTasks] = useState<TAdminTask[]>(initialTasks);
+  const [filter, setFilter] = useState(initialFilter);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const pushToUrl = usePushToUrl();
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoading(true);
-      try {
-        const res = await getAllTasksAdmin(filter, page, 10);
-        setTasks(res.data ?? []);
-        setTotalPages(res.meta?.totalPages ?? 1);
-      } catch {
-        // handled globally
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchTasks();
-  }, [filter, page]);
+    setTasks(initialTasks);
+    setFilter(initialFilter);
+    setPage(initialPage);
+    setTotalPages(initialTotalPages);
+  }, [initialTasks, initialFilter, initialPage, initialTotalPages]);
+
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    pushToUrl({ filter: value, page: 1 });
+  };
+
+  const handleAccept = async (id: string) => {
+    setUpdatingId(id);
+    try {
+      const updated = await acceptApplicationAction(id);
+      toast.success("Application accepted — task is now in progress");
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to accept application");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const handleDecision = async (id: string, status: "APPROVED" | "REJECTED") => {
     setUpdatingId(id);
@@ -53,11 +75,11 @@ export default function AdminTaskReviewClient() {
       }
     }
     try {
-      await reviewTask(id, status, note ?? undefined);
+      await reviewTaskAction(id, status, note ?? undefined);
       toast.success(status === "APPROVED" ? "Task approved — reward credited" : "Task rejected");
       setTasks((prev) => prev.filter((t) => t.id !== id));
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to review task");
     } finally {
       setUpdatingId(null);
     }
@@ -67,14 +89,7 @@ export default function AdminTaskReviewClient() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Task review</h1>
-        <Select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setPage(1);
-          }}
-          className="w-40"
-        >
+        <Select value={filter} onChange={(e) => changeFilter(e.target.value)} className="w-40">
           <option value="ALL">All Tasks</option>
           <option value="PENDING">Pending</option>
           <option value="IN_PROGRESS">In Progress</option>
@@ -97,9 +112,7 @@ export default function AdminTaskReviewClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-gray-500">Loading...</TableCell></TableRow>
-            ) : tasks.length === 0 ? (
+            {tasks.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center py-6 text-gray-500">No tasks found</TableCell></TableRow>
             ) : (
               tasks.map((task) => (
@@ -120,6 +133,9 @@ export default function AdminTaskReviewClient() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right space-x-2">
+                    {task.status === "PENDING" && (
+                      <Button size="sm" disabled={updatingId === task.id} onClick={() => handleAccept(task.id)}>Accept</Button>
+                    )}
                     {task.status === "SUBMITTED" && (
                       <>
                         <Button size="sm" disabled={updatingId === task.id} onClick={() => handleDecision(task.id, "APPROVED")}>Approve</Button>
@@ -132,7 +148,7 @@ export default function AdminTaskReviewClient() {
             )}
           </TableBody>
         </Table>
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
     </div>
   );

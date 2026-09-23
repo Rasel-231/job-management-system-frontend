@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getAllVerifications, reviewVerification } from "./verificationApi";
+import { reviewVerificationAction } from "./actions";
 import { TVerification } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
@@ -16,30 +17,39 @@ const statusBadge: Record<TVerification["status"], TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function AdminVerificationsClient() {
-  const [requests, setRequests] = useState<TVerification[]>([]);
-  const [filter, setFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+// CLIENT COMPONENT — rows/filter/page come from the Server Component
+// (searchParams); approval/rejection are Server Actions.
+type TAdminVerificationsClientProps = {
+  initialRequests: TVerification[];
+  initialFilter: string;
+  initialPage: number;
+  initialTotalPages: number;
+};
 
-  const load = async (pageToLoad: number, statusFilter: string) => {
-    setIsLoading(true);
-    try {
-      const res = await getAllVerifications(statusFilter, pageToLoad, 10);
-      setRequests(res.data ?? []);
-      setTotalPages(res.meta?.totalPages ?? 1);
-    } catch {
-      // handled globally
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default function AdminVerificationsClient({
+  initialRequests,
+  initialFilter,
+  initialPage,
+  initialTotalPages,
+}: TAdminVerificationsClientProps) {
+  const [requests, setRequests] = useState<TVerification[]>(initialRequests);
+  const [filter, setFilter] = useState(initialFilter);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const pushToUrl = usePushToUrl();
 
   useEffect(() => {
-    void load(page, filter);
-  }, [page, filter]);
+    setRequests(initialRequests);
+    setFilter(initialFilter);
+    setPage(initialPage);
+    setTotalPages(initialTotalPages);
+  }, [initialRequests, initialFilter, initialPage, initialTotalPages]);
+
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    pushToUrl({ filter: value, page: 1 });
+  };
 
   const handleReview = async (id: string, status: "APPROVED" | "REJECTED") => {
     setUpdatingId(id);
@@ -52,11 +62,11 @@ export default function AdminVerificationsClient() {
       }
     }
     try {
-      await reviewVerification(id, status, note ?? undefined);
+      await reviewVerificationAction(id, status, note ?? undefined);
       toast.success(status === "APPROVED" ? "Verified — user now has the blue badge" : "Verification rejected");
       setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to review");
     } finally {
       setUpdatingId(null);
     }
@@ -66,14 +76,7 @@ export default function AdminVerificationsClient() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Verification requests</h1>
-        <Select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setPage(1);
-          }}
-          className="w-40"
-        >
+        <Select value={filter} onChange={(e) => changeFilter(e.target.value)} className="w-40">
           <option value="ALL">All Status</option>
           <option value="PENDING">Pending</option>
           <option value="APPROVED">Approved</option>
@@ -93,9 +96,7 @@ export default function AdminVerificationsClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-6 text-gray-500">Loading...</TableCell></TableRow>
-            ) : requests.length === 0 ? (
+            {requests.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="text-center py-6 text-gray-500">No verification requests</TableCell></TableRow>
             ) : (
               requests.map((r) => (
@@ -128,7 +129,7 @@ export default function AdminVerificationsClient() {
             )}
           </TableBody>
         </Table>
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
     </div>
   );

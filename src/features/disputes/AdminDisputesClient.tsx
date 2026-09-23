@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getAllDisputes, resolveDispute } from "./disputeApi";
+import { resolveDisputeAction } from "./actions";
 import { TDispute } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
@@ -16,30 +17,37 @@ const statusBadge: Record<TDispute["status"], TBadgeVariant> = {
   REJECTED: "secondary",
 };
 
-export default function AdminDisputesClient() {
-  const [disputes, setDisputes] = useState<TDispute[]>([]);
-  const [filter, setFilter] = useState("OPEN");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+type TAdminDisputesClientProps = {
+  initialDisputes: TDispute[];
+  initialFilter: string;
+  initialPage: number;
+  initialTotalPages: number;
+};
 
-  const load = async (pageToLoad: number, statusFilter: string) => {
-    setIsLoading(true);
-    try {
-      const res = await getAllDisputes(statusFilter, pageToLoad, 10);
-      setDisputes(res.data ?? []);
-      setTotalPages(res.meta?.totalPages ?? 1);
-    } catch {
-      // handled globally
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default function AdminDisputesClient({
+  initialDisputes,
+  initialFilter,
+  initialPage,
+  initialTotalPages,
+}: TAdminDisputesClientProps) {
+  const [disputes, setDisputes] = useState<TDispute[]>(initialDisputes);
+  const [filter, setFilter] = useState(initialFilter);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const pushToUrl = usePushToUrl();
 
   useEffect(() => {
-    void load(page, filter);
-  }, [page, filter]);
+    setDisputes(initialDisputes);
+    setFilter(initialFilter);
+    setPage(initialPage);
+    setTotalPages(initialTotalPages);
+  }, [initialDisputes, initialFilter, initialPage, initialTotalPages]);
+
+  const changeFilter = (value: string) => {
+    setFilter(value);
+    pushToUrl({ filter: value, page: 1 });
+  };
 
   const handleResolve = async (id: string, status: "RESOLVED" | "REJECTED") => {
     setUpdatingId(id);
@@ -50,11 +58,11 @@ export default function AdminDisputesClient() {
     }
     const resolution = input.trim() || (status === "RESOLVED" ? "Handled by admin" : "Not a valid claim");
     try {
-      await resolveDispute(id, status, resolution);
+      await resolveDisputeAction(id, status, resolution);
       toast.success(status === "RESOLVED" ? "Dispute resolved" : "Dispute rejected");
       setDisputes((prev) => prev.map((d) => (d.id === id ? { ...d, status, resolution } : d)));
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to resolve dispute");
     } finally {
       setUpdatingId(null);
     }
@@ -64,14 +72,7 @@ export default function AdminDisputesClient() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Dispute desk</h1>
-        <Select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setPage(1);
-          }}
-          className="w-40"
-        >
+        <Select value={filter} onChange={(e) => changeFilter(e.target.value)} className="w-40">
           <option value="OPEN">Open</option>
           <option value="RESOLVED">Resolved</option>
           <option value="REJECTED">Rejected</option>
@@ -92,9 +93,7 @@ export default function AdminDisputesClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
-            ) : disputes.length === 0 ? (
+            {disputes.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground">No disputes found</TableCell></TableRow>
             ) : (
               disputes.map((d) => (
@@ -122,7 +121,7 @@ export default function AdminDisputesClient() {
             )}
           </TableBody>
         </Table>
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 // it a build error if a Client Component ever imports this by mistake.
 type TServerFetchOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
-  body?: unknown;
+  body?: unknown | FormData;
   params?: Record<string, string | number | undefined>;
 };
 
@@ -17,6 +17,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/
 export async function serverFetch<T>(path: string, options: TServerFetchOptions = {}): Promise<T> {
   const cookieStore = await cookies();
   const cookieHeader = cookieStore.toString();
+  const isFormData = options.body instanceof FormData;
 
   const url = new URL(`${BASE_URL}${path}`);
   if (options.params) {
@@ -27,14 +28,16 @@ export async function serverFetch<T>(path: string, options: TServerFetchOptions 
 
   const res = await fetch(url.toString(), {
     method: options.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-      // The backend authenticates via the httpOnly accessToken cookie — forward
-      // the whole cookie jar instead of an Authorization header so server-side
-      // fetches (admin serializers etc.) reach it with the real session.
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    headers: isFormData
+      ? { ...(cookieHeader ? { Cookie: cookieHeader } : {}) }
+      : {
+          "Content-Type": "application/json",
+          // The backend authenticates via the httpOnly accessToken cookie — forward
+          // the whole cookie jar instead of an Authorization header so server-side
+          // fetches (admin serializers etc.) reach it with the real session.
+          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+        },
+    body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
     cache: "no-store",
   });
 

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-toastify";
-import { getMyVerifications, submitVerification } from "./verificationApi";
-import { requestOtp, verifyOtp, updateMyProfile } from "../auth/authApi";
+import { submitVerificationAction } from "./actions";
+import { requestOtp, verifyOtp } from "../auth/authApi";
+import { updateProfileAction } from "../auth/actions";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { setUser } from "../auth/authSlice";
+import { TUser } from "../auth/types";
 import { TVerification } from "./types";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import { Button } from "../../components/ui/button";
@@ -20,12 +22,21 @@ const statusBadge: Record<TVerification["status"], TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function VerificationClient() {
+// CLIENT COMPONENT — verification history is a server-fetched prop; document
+// submissions and phone edits are Server Actions. (OTP request/verify stay
+// client-side against the auth endpoints.)
+export default function VerificationClient({
+  initialRequests,
+  initialUser,
+}: {
+  initialRequests: TVerification[];
+  initialUser: TUser | null;
+}) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
 
-  const [requests, setRequests] = useState<TVerification[]>([]);
-  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [requests, setRequests] = useState<TVerification[]>(initialRequests);
+  const [phone, setPhone] = useState(initialUser?.phone ?? "");
   const [otpCode, setOtpCode] = useState("");
   const [devOtp, setDevOtp] = useState<string | undefined>(undefined);
   const [otpSent, setOtpSent] = useState(false);
@@ -35,18 +46,6 @@ export default function VerificationClient() {
   const [docNumber, setDocNumber] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
   const [submittingDoc, setSubmittingDoc] = useState(false);
-
-  const load = async () => {
-    try {
-      setRequests(await getMyVerifications());
-    } catch {
-      // handled globally
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
 
   const handleRequestOtp = async () => {
     if (!phone) {
@@ -85,11 +84,11 @@ export default function VerificationClient() {
 
   const handleSavePhone = async () => {
     try {
-      const updated = await updateMyProfile({ phone });
+      const updated = await updateProfileAction({ phone, name: user?.name });
       dispatch(setUser(updated));
       toast.success("Phone updated");
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update phone");
     }
   };
 
@@ -101,13 +100,13 @@ export default function VerificationClient() {
     }
     setSubmittingDoc(true);
     try {
-      await submitVerification({ type: docType, documentNumber: docNumber || undefined }, docFile);
+      const created = await submitVerificationAction({ type: docType, documentNumber: docNumber || undefined }, docFile);
+      setRequests((prev) => [created, ...prev]);
       toast.success("Verification submitted. Awaiting admin review.");
       setDocFile(null);
       setDocNumber("");
-      await load();
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit verification");
     } finally {
       setSubmittingDoc(false);
     }

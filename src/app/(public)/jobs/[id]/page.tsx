@@ -1,26 +1,30 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { serverFetch } from "../../../../lib/serverFetch";
-import { TApiResponse } from "../../../../types/apiResponse";
+import { getSingleJob } from "../../../../features/jobs/server";
+import { hasAppliedToJob } from "../../../../features/tasks/server";
 import { TJob, categoryLabels } from "../../../../features/jobs/types";
 import ApplyButton from "../../../../components/shared/ApplyButton";
 import VerifiedBadge from "../../../../components/shared/VerifiedBadge";
 import { Badge } from "../../../../components/ui/badge";
 
 // DYNAMIC ROUTE — /jobs/[id]. PUBLIC: guests can read the full job detail
-// (backend optionalAuthenticate), SEO-friendly server-side rendering.
+// (backend optionalAuthenticate), SEO-friendly server-side rendering. The
+// "has applied" state for the current user is computed server-side too.
+export const dynamic = "force-dynamic";
+
 export default async function PublicJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   let job: TJob | undefined;
   try {
-    const res = await serverFetch<TApiResponse<TJob>>(`/jobs/${id}`);
-    job = res.data;
+    job = await getSingleJob(id);
   } catch {
     notFound();
   }
 
   if (!job) notFound();
+
+  const hasApplied = await hasAppliedToJob(id);
 
   return (
     <div className="card-shadow mx-auto max-w-2xl space-y-5 rounded-xl border border-border bg-card p-6">
@@ -53,8 +57,8 @@ export default async function PublicJobDetailPage({ params }: { params: Promise<
       </div>
 
       {job.imageUrl && (
-        <div className="relative h-64 w-full overflow-hidden rounded-xl border border-border">
-          <Image src={job.imageUrl} alt={job.title} fill className="object-cover" />
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border">
+          <Image src={job.imageUrl} alt={job.title} fill sizes="(min-width: 640px) 672px, 92vw" className="object-cover" />
         </div>
       )}
 
@@ -88,7 +92,7 @@ export default async function PublicJobDetailPage({ params }: { params: Promise<
         <p className="text-sm text-muted-foreground">{job.proofRequirements}</p>
       </div>
 
-      <ApplyButton jobId={job.id} />
+      <ApplyButton jobId={job.id} hasApplied={hasApplied} />
     </div>
   );
 }

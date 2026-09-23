@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
-import { getMyTasks, completeStep, submitProof } from "./taskApi";
+import { completeStepAction, submitProofAction } from "./actions";
 import { TTask, TTaskStep } from "./types";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import { Input } from "../../components/ui/input";
@@ -22,30 +22,16 @@ const statusBadge: Record<TTask["status"], TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function MyTasksClient() {
-  const [tasks, setTasks] = useState<TTask[]>([]);
-  const [loading, setLoading] = useState(true);
+// CLIENT COMPONENT — tasks arrive server-side via props; every task
+// mutation (step complete / proof submit) is a Server Action.
+export default function MyTasksClient({ initialTasks }: { initialTasks: TTask[] }) {
+  const [tasks, setTasks] = useState<TTask[]>(initialTasks);
 
   const [submitTarget, setSubmitTarget] = useState<TTask | null>(null);
   const [link, setLink] = useState("");
   const [note, setNote] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      setTasks(await getMyTasks());
-    } catch {
-      // handled globally
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
 
   const patchTask = (updated: TTask) => {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
@@ -54,11 +40,11 @@ export default function MyTasksClient() {
   const handleCompleteStep = async (task: TTask, step: TTaskStep) => {
     if (step.status === "COMPLETED") return;
     try {
-      const updated = await completeStep(task.id, step.id);
+      const updated = await completeStepAction(task.id, step.id);
       patchTask(updated);
       toast.success("Step completed - progress updated");
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update step");
     }
   };
 
@@ -67,32 +53,23 @@ export default function MyTasksClient() {
     if (!submitTarget) return;
     setSubmitting(true);
     try {
-      const updated = await submitProof(
-        submitTarget.id,
-        { submissionLink: link || undefined, proofNote: note || undefined },
-        file ?? undefined
-      );
+      const fd = new FormData();
+      if (link) fd.append("submissionLink", link);
+      if (note) fd.append("proofNote", note);
+      if (file) fd.append("proofFile", file);
+      const updated = await submitProofAction(submitTarget.id, fd);
       patchTask(updated);
       toast.success("Proof submitted! Waiting for poster approval.");
       setSubmitTarget(null);
       setLink("");
       setNote("");
       setFile(null);
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit proof");
     } finally {
       setSubmitting(false);
     }
   };
-
-  if (loading)
-    return (
-      <div className="space-y-4">
-        {[0, 1].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-xl border border-border bg-card" />
-        ))}
-      </div>
-    );
 
   if (tasks.length === 0)
     return (

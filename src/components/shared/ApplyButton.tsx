@@ -3,15 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { applyForJob } from "../../features/tasks/taskApi";
+import { applyForJobAction } from "../../features/tasks/actions";
 import { useAppSelector } from "../../redux/hooks";
 import { Button } from "../../components/ui/button";
 
-export default function ApplyButton({ jobId }: { jobId: string }) {
+// `hasApplied` is computed on the server (Server Component fetches My Tasks
+// for the request's logged-in user). Applying itself is a Server Action so
+// the httpOnly cookie is never exposed to the browser.
+export default function ApplyButton({ jobId, hasApplied = false }: { jobId: string; hasApplied?: boolean }) {
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
   const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [appliedNow, setAppliedNow] = useState(false);
+
+  const applied = hasApplied || appliedNow;
 
   const handleApply = async () => {
     if (!user) {
@@ -21,11 +26,11 @@ export default function ApplyButton({ jobId }: { jobId: string }) {
     }
     setApplying(true);
     try {
-      await applyForJob(jobId);
-      setApplied(true);
+      await applyForJobAction(jobId);
+      setAppliedNow(true);
       toast.success("Applied! Track progress from My Tasks.");
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply");
     } finally {
       setApplying(false);
     }

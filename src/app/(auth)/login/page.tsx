@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
-import { loginUser } from "../../../features/auth/authApi";
+import { loginAction } from "../../../features/auth/actions";
 import { useAppDispatch } from "../../../redux/hooks";
 import { setUser } from "../../../features/auth/authSlice";
 import SocialLoginButtons from "../../../components/shared/SocialLoginButtons";
+import BackButton from "../../../components/shared/BackButton";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Icon } from "../../../components/ui/icons";
@@ -18,10 +19,14 @@ const features = [
 ] as const;
 
 // CLIENT COMPONENT — needs form state, Redux dispatch, and router navigation.
+// The actual login is a Server Action (loginAction) so the httpOnly auth
+// cookies are issued server-side, never accessible to JS.
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo");
+  const rawRedirect = searchParams.get("redirectTo");
+  const redirectTo =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : undefined;
   const dispatch = useAppDispatch();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -34,18 +39,16 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await loginUser(formData);
-      if (res.data) {
-        dispatch(setUser(res.data.user));
+      const res = await loginAction({ email: formData.email, password: formData.password });
+      if (res.ok) {
+        dispatch(setUser(res.user));
         toast.success("Logged in successfully");
-        if (redirectTo) {
-          router.push(redirectTo);
-        } else {
-          router.push(res.data.user.role === "ADMIN" ? "/admin/jobs" : "/jobs");
-        }
+        router.push(redirectTo ?? (res.user.role === "ADMIN" ? "/admin/jobs" : "/jobs"));
+      } else {
+        toast.error(res.error);
       }
     } catch {
-      // handled globally by axiosInstance
+      toast.error("Could not sign in — try again");
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +62,7 @@ export default function LoginPage() {
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-primary-foreground/10 blur-2xl" />
 
           <div className="relative flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight">JobStack</span>
+            <span className="text-lg font-bold tracking-tight">PayTask</span>
           </div>
 
           <div className="relative space-y-8">
@@ -68,7 +71,7 @@ export default function LoginPage() {
                 Your work, managed in one place.
               </h2>
               <p className="mt-2 text-sm text-primary-foreground/75">
-                Join thousands of participants and clients building together on JobStack.
+                Join thousands of participants and clients building together on PayTask.
               </p>
             </div>
 
@@ -94,9 +97,10 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-col justify-center p-7 sm:p-10">
+          <BackButton className="mb-6 self-start" />
           <div className="mb-6 text-center md:text-left">
             <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to continue to JobStack</p>
+            <p className="mt-1 text-sm text-muted-foreground">Sign in to continue to PayTask</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

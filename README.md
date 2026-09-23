@@ -86,6 +86,7 @@ npm start       # serve the production build
 | `/dashboard/my-tasks`     | User   | Accepted tasks, milestone submission       |
 | `/dashboard/earnings`     | User   | Wallet balance, withdrawals, history       |
 | `/dashboard/disputes`     | User   | Open & track disputes                      |
+| `/admin/users`            | Admin  | User list, edit profile, delete user (modal)|
 | `/dashboard/verification` | User   | Identity verification request              |
 | `/admin/jobs` … `/admin/disputes` | Admin | Moderation & review pages           |
 
@@ -98,15 +99,18 @@ npm start       # serve the production build
 ## Backend Contract Notes
 
 - Auth uses **httpOnly cookies** (`accessToken`, `refreshToken`, `role`); every API call goes through the axios interceptor with `withCredentials: true`.
-- Response envelope: `{ success, message, meta?, data? }`.
+- Response envelope: `{ success, message, meta?, data? }`. The recent "my **" list endpoints (`/jobs/my-jobs`, `/tasks/my-tasks`, `/tasks/job/:jobId/applications`, `/disputes/my-disputes`, `/transactions/my-withdrawals`) now optionally return `meta` for pagination — the client keeps reading `res.data.data ?? []`, so nothing downstream changes.
 - Key API shapes the frontend depends on (verified against the backend):
   - User warnings: `PATCH /users/:id/warnings` (field `warnings`, plural path).
   - Transaction review: body field `adminNote` (not `note`).
   - Job steps: field name `steps` (array of `{ title, description }`; the UI dialog accepts JSON text and the backend parses it, so `stepsJson` is obsolete).
   - Task `completeStep` / `reviewTask` responses return partial job-bearing task objects — the UI handles missing `job.postedBy`/`job.reward` gracefully.
+- Register now requires a password of **≥ 8 characters containing a lowercase letter, an uppercase letter and a digit** — validated client-side by the input's `minLength` and mirrored by the backend zod schema.
 - Currency is displayed in **taka (৳)** app-wide.
 
 ## Notes
 
 - The mobile layout collapses the dashboard sidebar; navigation is still accessible via the top navbar.
 - Server-rendered detail routes (`/dashboard/jobs/[id]`) stay SEO-friendly; interactions (apply, like, comment) are client components.
+- **Apply button** is disabled and labelled "Already applied" when the current user already has an application for that job — driven by the `useHasAppliedToJob` hook (`features/tasks/useHasAppliedToJob.ts`), which fetches the user's tasks and matches on `task.job.id`.
+- **Admin user management** (`/admin/users`): rows are clickable and open `UserDetailModal` (edit profile fields + promote/demote role) with an inline **Delete user** warning flow — using `updateUser` / `deleteUser` from `features/user/userApi.ts`. The backend enforces the same via `PATCH /users/:id` / `DELETE /users/:id` under the `USER_UPDATE` / `USER_DELETE` permissions.

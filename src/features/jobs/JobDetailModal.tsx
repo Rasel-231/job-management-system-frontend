@@ -8,20 +8,23 @@ import { toast } from "react-toastify";
 import { TJob, categoryLabels } from "./types";
 import { useAppSelector } from "../../redux/hooks";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
-import { applyForJob } from "../tasks/taskApi";
+import { applyForJobAction } from "../tasks/actions";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 
 type TJobDetailModalProps = {
   job: TJob | null;
   onClose: () => void;
+  hasApplied?: boolean;
 };
 
-export default function JobDetailModal({ job, onClose }: TJobDetailModalProps) {
+export default function JobDetailModal({ job, onClose, hasApplied = false }: TJobDetailModalProps) {
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
   const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [appliedNow, setAppliedNow] = useState(false);
+
+  const applied = hasApplied || appliedNow;
 
   const handleApply = async () => {
     if (!job) return;
@@ -32,10 +35,10 @@ export default function JobDetailModal({ job, onClose }: TJobDetailModalProps) {
     }
     setApplying(true);
     try {
-      await applyForJob(job.id);
-      setApplied(true);
-    } catch {
-      // handled globally
+      await applyForJobAction(job.id);
+      setAppliedNow(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply");
     } finally {
       setApplying(false);
     }
@@ -60,8 +63,8 @@ export default function JobDetailModal({ job, onClose }: TJobDetailModalProps) {
             onClick={(e) => e.stopPropagation()}
           >
             {job.imageUrl && (
-              <div className="relative h-56 w-full overflow-hidden">
-                <Image src={job.imageUrl} alt={job.title} fill className="object-cover" />
+              <div className="relative aspect-video w-full overflow-hidden">
+                <Image src={job.imageUrl} alt={job.title} fill sizes="(min-width: 640px) 608px, 92vw" className="object-cover" />
               </div>
             )}
 

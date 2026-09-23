@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
-import { getMyEarnings, requestWithdrawal } from "./transactionApi";
+import { requestWithdrawalAction } from "./actions";
 import { TEarningsSummary, TWithdrawalMethod, withdrawalMethodLabels } from "./types";
 import { Input } from "../../components/ui/input";
 import { Select } from "../../components/ui/select";
@@ -20,10 +21,12 @@ const withdrawalStatusBadge: Record<string, TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function EarningsClient() {
-  const [summary, setSummary] = useState<TEarningsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+// CLIENT COMPONENT — the wallet summary is rendered from server-fetched props;
+// requesting a withdrawal is a Server Action, after which router.refresh()
+// re-fetches the page so the server recomputes the summary.
+export default function EarningsClient({ initialSummary }: { initialSummary: TEarningsSummary }) {
+  const router = useRouter();
+  const [summary, setSummary] = useState<TEarningsSummary>(initialSummary);
 
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<TWithdrawalMethod>("BKASH");
@@ -31,25 +34,12 @@ export default function EarningsClient() {
   const [accountNumber, setAccountNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      setSummary(await getMyEarnings());
-    } catch {
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    void load();
-  }, []);
+    setSummary(initialSummary);
+  }, [initialSummary]);
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!summary) return;
     const num = Number(amount);
     if (!num || num < 50) {
       toast.error("Minimum withdrawal amount is 50");
@@ -61,33 +51,18 @@ export default function EarningsClient() {
     }
     setSubmitting(true);
     try {
-      await requestWithdrawal({ amount: num, method, accountHolder, accountNumber });
+      await requestWithdrawalAction({ amount: num, method, accountHolder, accountNumber });
       toast.success("Withdrawal request submitted! Awaiting admin approval.");
       setAmount("");
       setAccountHolder("");
       setAccountNumber("");
-      await load();
-    } catch {
-      // handled globally
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to request withdrawal");
     } finally {
       setSubmitting(false);
     }
   };
-
-  if (loading) {
-    return <p className="py-12 text-center text-muted-foreground">Loading wallet...</p>;
-  }
-
-  if (loadError || !summary) {
-    return (
-      <div className="space-y-3 rounded-xl border border-dashed border-border bg-card py-12 text-center">
-        <p className="text-muted-foreground">Could not load your wallet.</p>
-        <Button variant="outline" onClick={() => void load()}>
-          Retry
-        </Button>
-      </div>
-    );
-  }
 
   const cards = [
     { label: "Total Earnings", value: summary.totalEarnings, color: "text-emerald-600" },

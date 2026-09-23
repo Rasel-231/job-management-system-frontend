@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-toastify";
-import { createDispute, getMyDisputes } from "./disputeApi";
+import { createDisputeAction } from "./actions";
 import { TDispute } from "./types";
-import { getMyJobs } from "../jobs/jobApi";
-import { getMyTasks } from "../tasks/taskApi";
 import { TTask } from "../tasks/types";
 import { Input } from "../../components/ui/input";
 import { Select } from "../../components/ui/select";
@@ -20,44 +18,24 @@ const statusBadge: Record<TDispute["status"], TBadgeVariant> = {
   REJECTED: "secondary",
 };
 
-export default function MyDisputesClient() {
-  const [disputes, setDisputes] = useState<TDispute[]>([]);
-  const [loading, setLoading] = useState(true);
+// CLIENT COMPONENT — disputes + dispute-form options are server-fetched props;
+// opening a dispute is a Server Action.
+export default function MyDisputesClient({
+  initialDisputes,
+  initialJobOptions,
+  initialTasks,
+}: {
+  initialDisputes: TDispute[];
+  initialJobOptions: { id: string; title: string }[];
+  initialTasks: TTask[];
+}) {
+  const [disputes, setDisputes] = useState<TDispute[]>(initialDisputes);
 
-  const [jobOptions, setJobOptions] = useState<{ id: string; title: string }[]>([]);
-  const [tasks, setTasks] = useState<TTask[]>([]);
   const [jobId, setJobId] = useState("");
   const [taskId, setTaskId] = useState("");
   const [respondentEmail, setRespondentEmail] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      setDisputes(await getMyDisputes());
-      const [myJobs, myTasks] = await Promise.all([getMyJobs(), getMyTasks()]);
-      setTasks(myTasks);
-      const seen = new Set<string>();
-      setJobOptions([
-        ...myJobs.map((j) => {
-          seen.add(j.id);
-          return { id: j.id, title: j.title };
-        }),
-        ...myTasks
-          .map((t) => ({ id: t.job.id, title: t.job.title }))
-          .filter((j) => !seen.has(j.id)),
-      ]);
-    } catch {
-      // handled globally
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +45,7 @@ export default function MyDisputesClient() {
     }
     setSubmitting(true);
     try {
-      const dispute = await createDispute({
+      const dispute = await createDisputeAction({
         jobId,
         taskId: taskId || undefined,
         reason,
@@ -79,14 +57,14 @@ export default function MyDisputesClient() {
       setTaskId("");
       setRespondentEmail("");
       toast.success("Dispute opened — awaiting admin review");
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to open dispute");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const selectedJobTasks = tasks.filter((t) => t.job.id === jobId);
+  const selectedJobTasks = initialTasks.filter((t) => t.job.id === jobId);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -104,7 +82,7 @@ export default function MyDisputesClient() {
             <label className="text-sm font-medium">Related job</label>
             <Select className="w-full" value={jobId} onChange={(e) => { setJobId(e.target.value); setTaskId(""); }}>
               <option value="">Select job...</option>
-              {jobOptions.map((j) => (
+              {initialJobOptions.map((j) => (
                 <option key={j.id} value={j.id}>{j.title}</option>
               ))}
             </Select>
@@ -147,9 +125,7 @@ export default function MyDisputesClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Loading...</TableCell></TableRow>
-            ) : disputes.length === 0 ? (
+            {disputes.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">No disputes</TableCell></TableRow>
             ) : (
               disputes.map((d) => (

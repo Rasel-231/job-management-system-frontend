@@ -31,3 +31,28 @@ export const updateUserWarning = async (id: string, action: "warn" | "clear"): P
   if (!res.data.data) throw new Error("Failed to update user warning");
   return res.data.data;
 };
+
+export type TUserUpdateInput = {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+  role?: "ADMIN" | "USER";
+  accountType?: "JOB_SEEKER" | "JOB_POSTER" | "BOTH";
+  status?: "PENDING" | "ACTIVE" | "BLOCKED";
+  isVerified?: boolean;
+  isPhoneVerified?: boolean;
+};
+
+export const updateUser = async (id: string, payload: TUserUpdateInput): Promise<TUserRow> => {
+  const res = await axiosInstance.patch<TApiResponse<TUserRow>>(`/users/${id}`, payload);
+  if (!res.data.data) throw new Error("Failed to update user");
+  return res.data.data;
+};
+
+export const deleteUser = async (id: string): Promise<{ id: string; name: string; email: string }> => {
+  const res = await axiosInstance.delete<TApiResponse<{ id: string; name: string; email: string }>>(
+    `/users/${id}`
+  );
+  if (!res.data.data) throw new Error("Failed to delete user");
+  return res.data.data;
+};

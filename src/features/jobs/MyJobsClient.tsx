@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-toastify";
-import { getMyJobs } from "./jobApi";
-import { getJobApplications, acceptApplication, reviewTask } from "../tasks/taskApi";
+import { acceptApplicationAction, reviewTaskAction } from "../tasks/actions";
 import { TJob, categoryLabels } from "./types";
 import { TTask } from "../tasks/types";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
@@ -20,35 +19,18 @@ const statusBadge: Record<TTask["status"], TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function MyJobsClient() {
-  const [jobs, setJobs] = useState<TJob[]>([]);
-  const [applicationsByJob, setApplicationsByJob] = useState<Record<string, TTask[]>>({});
-  const [loading, setLoading] = useState(true);
+// CLIENT COMPONENT — jobs + their applications are fetched server-side by the
+// page; accepting/reviewing applications are Server Actions.
+type TMyJobsClientProps = {
+  initialJobs: TJob[];
+  initialApplicationsByJob: Record<string, TTask[]>;
+};
+
+export default function MyJobsClient({ initialJobs, initialApplicationsByJob }: TMyJobsClientProps) {
+  const [jobs, setJobs] = useState<TJob[]>(initialJobs);
+  const [applicationsByJob, setApplicationsByJob] = useState<Record<string, TTask[]>>(initialApplicationsByJob);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const myJobs = await getMyJobs();
-      setJobs(myJobs);
-      const apps: Record<string, TTask[]> = {};
-      await Promise.all(
-        myJobs.map(async (job) => {
-          apps[job.id] = await getJobApplications(job.id);
-        })
-      );
-      setApplicationsByJob(apps);
-    } catch {
-      // handled globally
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
 
   const run = async (id: string, fn: () => Promise<TTask>, successMessage?: string) => {
     setBusy(id);
@@ -62,21 +44,12 @@ export default function MyJobsClient() {
         }
         return next;
       });
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
       setBusy(null);
     }
   };
-
-  if (loading)
-    return (
-      <div className="space-y-4">
-        {[0, 1].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-card" />
-        ))}
-      </div>
-    );
 
   if (jobs.length === 0)
     return (
@@ -163,7 +136,7 @@ export default function MyJobsClient() {
                               <Button
                                 size="sm"
                                 disabled={busy === task.id}
-                                onClick={() => void run(task.id, () => acceptApplication(task.id), "Application accepted")}
+                                onClick={() => void run(task.id, () => acceptApplicationAction(task.id), "Application accepted")}
                               >
                                 Accept
                               </Button>
@@ -173,8 +146,8 @@ export default function MyJobsClient() {
                                 <Button
                                   size="sm"
                                   disabled={busy === task.id}
-onClick={() => void run(task.id, () => reviewTask(task.id, "APPROVED"), "Approved — wallet credited")}
-                                  >
+                                  onClick={() => void run(task.id, () => reviewTaskAction(task.id, "APPROVED"), "Approved — wallet credited")}
+                                >
                                   Approve
                                 </Button>
                                 <Button
@@ -184,7 +157,7 @@ onClick={() => void run(task.id, () => reviewTask(task.id, "APPROVED"), "Approve
                                   onClick={() => {
                                     const note = prompt("Rejection note:");
                                     if (note === null) return;
-                                    void run(task.id, () => reviewTask(task.id, "REJECTED", note || undefined));
+                                    void run(task.id, () => reviewTaskAction(task.id, "REJECTED", note || undefined));
                                   }}
                                 >
                                   Reject

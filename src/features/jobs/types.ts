@@ -57,6 +57,11 @@ export type TJob = {
   createdAt?: string;
 };
 
+export type TJobFormStep = {
+  title: string;
+  description: string;
+};
+
 export type TJobFormValues = {
   title: string;
   description: string;
@@ -65,5 +70,5 @@ export type TJobFormValues = {
   reward: number;
   category: string;
   deadline: string;
-  steps: string;
+  steps: TJobFormStep[];
 };

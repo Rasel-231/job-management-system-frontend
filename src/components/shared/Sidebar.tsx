@@ -16,6 +16,7 @@ const adminLinks: TSidebarLink[] = [
   { label: "Users", href: "/admin/users", icon: "users" },
   { label: "Tasks", href: "/admin/tasks", icon: "checklist" },
   { label: "Transactions", href: "/admin/transactions", icon: "history" },
+  { label: "Profile", href: "/admin/profile", icon: "user" },
 ];
 
 const userLinks: TSidebarLink[] = [

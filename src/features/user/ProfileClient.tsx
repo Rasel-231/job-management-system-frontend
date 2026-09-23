@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "react-toastify";
 import Image from "next/image";
-import { getCurrentUser, updateMyProfile } from "../auth/authApi";
+import { updateProfileAction } from "../auth/actions";
 import { setUser } from "../auth/authSlice";
 import { useAppDispatch } from "../../redux/hooks";
 import { TAccountType, TUser } from "../auth/types";
@@ -19,40 +19,20 @@ const accountTypeLabels: Record<string, string> = {
   BOTH: "Participant + Client",
 };
 
-export default function ProfileClient() {
+// CLIENT COMPONENT — user data comes from a server-fetched prop; saving the
+// form runs the updateProfileAction Server Action.
+export default function ProfileClient({ initialUser }: { initialUser: TUser }) {
   const dispatch = useAppDispatch();
-  const [user, setLocalUser] = useState<TUser | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [user, setLocalUser] = useState<TUser>(initialUser);
+
+  const [name, setName] = useState(initialUser.name);
+  const [phone, setPhone] = useState(initialUser.phone ?? "");
+  const [bio, setBio] = useState(initialUser.bio ?? "");
+  const [skillTags, setSkillTags] = useState(initialUser.skillTags?.join(", ") ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(initialUser.avatarUrl ?? "");
+  const [accountType, setAccountType] = useState<TAccountType>(initialUser.accountType);
   const [saving, setSaving] = useState(false);
-
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [bio, setBio] = useState("");
-  const [skillTags, setSkillTags] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [accountType, setAccountType] = useState<TAccountType>("JOB_SEEKER");
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const me = await getCurrentUser();
-      setLocalUser(me);
-      setName(me.name);
-      setPhone(me.phone ?? "");
-      setBio(me.bio ?? "");
-      setSkillTags(me.skillTags?.join(", ") ?? "");
-      setAvatarUrl(me.avatarUrl ?? "");
-      setAccountType(me.accountType);
-    } catch {
-      toast.error("Could not load your profile");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +43,7 @@ export default function ProfileClient() {
         .map((t) => t.trim())
         .filter(Boolean)
         .slice(0, 15);
-      const updated = await updateMyProfile({
+      const updated = await updateProfileAction({
         name: name.trim(),
         phone: phone.trim() || undefined,
         bio: bio.trim() || undefined,
@@ -74,18 +54,12 @@ export default function ProfileClient() {
       dispatch(setUser(updated));
       setLocalUser(updated);
       toast.success("Profile updated successfully");
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update profile");
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return <p className="py-12 text-center text-muted-foreground">Loading profile...</p>;
-  }
-
-  if (!user) return null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

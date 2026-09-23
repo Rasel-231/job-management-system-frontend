@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { getCurrentUser } from "../auth/authApi";
 import { TUser } from "../auth/types";
-import { getMyEarnings } from "../transactions/transactionApi";
 import { TEarningsSummary } from "../transactions/types";
-import { getMyTasks } from "../tasks/taskApi";
 import { TTask } from "../tasks/types";
-import { getMyJobs } from "../jobs/jobApi";
 import { TJob } from "../jobs/types";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
 import { Icon } from "../../components/ui/icons";
 
+// CLIENT COMPONENT — purely presentational: user, wallet summary, tasks and
+// jobs are rendered from server-fetched props (no client fetching here).
 const currency = (n: number) =>
   `৳ ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -26,54 +23,28 @@ const taskStatusBadge: Record<string, TBadgeVariant> = {
   REJECTED: "destructive",
 };
 
-export default function DashboardOverviewClient() {
-  const [user, setUser] = useState<TUser | null>(null);
-  const [summary, setSummary] = useState<TEarningsSummary | null>(null);
-  const [tasks, setTasks] = useState<TTask[] | null>(null);
-  const [jobs, setJobs] = useState<TJob[] | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function DashboardOverviewClient({
+  initialUser,
+  initialSummary,
+  initialTasks,
+  initialJobs,
+}: {
+  initialUser: TUser;
+  initialSummary: TEarningsSummary | null;
+  initialTasks: TTask[];
+  initialJobs: TJob[];
+}) {
+  const user = initialUser;
+  const summary = initialSummary;
+  const tasks = initialTasks;
+  const jobs = initialJobs;
 
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const [me, earnings, myTasks, myJobs] = await Promise.allSettled([
-          getCurrentUser(),
-          getMyEarnings(),
-          getMyTasks(),
-          getMyJobs(),
-        ]);
-        if (!mounted) return;
-        if (me.status === "fulfilled") setUser(me.value);
-        if (earnings.status === "fulfilled") setSummary(earnings.value);
-        if (myTasks.status === "fulfilled") setTasks(myTasks.value);
-        if (myJobs.status === "fulfilled") setJobs(myJobs.value);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-4xl space-y-4">
-        <div className="h-8 w-56 animate-pulse rounded-lg bg-accent" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl border border-border bg-card" />
-          ))}
-        </div>
-        <div className="h-64 animate-pulse rounded-xl border border-border bg-card" />
-      </div>
-    );
-  }
-
-  const activeTasks =
-    tasks?.filter((t) => t.status === "IN_PROGRESS" || t.status === "SUBMITTED").length ?? 0;
-  const openJobs = jobs?.filter((j) => j.status === "OPEN").length ?? 0;
+  const activeTasks = tasks.filter((t) => t.status === "IN_PROGRESS" || t.status === "SUBMITTED").length;
+  const completedTasks = tasks.filter((t) => t.status === "APPROVED").length;
+  const remainingTasks =
+    tasks.filter((t) => t.status === "PENDING" || t.status === "IN_PROGRESS" || t.status === "SUBMITTED").length;
+  const openJobs = jobs.filter((j) => j.status === "OPEN").length;
+  const withdrawalRequested = summary ? summary.totalWithdrawn + summary.pendingWithdrawals : 0;
 
   const cards = [
     {
@@ -89,20 +60,44 @@ export default function DashboardOverviewClient() {
       to: "/dashboard/earnings",
     },
     {
-      label: "Active tasks",
-      value: String(activeTasks),
+      label: "Tasks joined",
+      value: String(tasks.length),
       icon: "checklist" as const,
       to: "/dashboard/my-tasks",
     },
     {
+      label: "Tasks completed",
+      value: String(completedTasks),
+      icon: "shield" as const,
+      to: "/dashboard/my-tasks",
+    },
+    {
+      label: "Tasks remaining",
+      value: String(remainingTasks),
+      icon: "briefcase" as const,
+      to: "/dashboard/my-tasks",
+    },
+    {
+      label: "Active tasks",
+      value: String(activeTasks),
+      icon: "history" as const,
+      to: "/dashboard/my-tasks",
+    },
+    {
+      label: "Withdrawal requested",
+      value: summary ? currency(withdrawalRequested) : "—",
+      icon: "banknote" as const,
+      to: "/dashboard/earnings",
+    },
+    {
       label: "Open jobs",
       value: String(openJobs),
-      icon: "briefcase" as const,
+      icon: "grid" as const,
       to: "/dashboard/my-jobs",
     },
   ];
 
-  const recentTasks = (tasks ?? []).slice(0, 5);
+  const recentTasks = tasks.slice(0, 5);
   const recentTx = (summary?.history ?? []).slice(0, 5);
 
   return (
@@ -110,7 +105,7 @@ export default function DashboardOverviewClient() {
       <div className="flex flex-wrap items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Welcome back, {user?.name?.split(" ")[0] ?? "there"}
+            Welcome back, {user.name?.split(" ")[0] ?? "there"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Here&apos;s what&apos;s happening with your jobs today.</p>
         </div>
@@ -201,26 +196,24 @@ export default function DashboardOverviewClient() {
       </div>
 
       {/* User profile strip */}
-      {user && (
-        <section className="card-shadow flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-          {user.avatarUrl ? (
-            <Image src={user.avatarUrl} alt="" width={40} height={40} className="rounded-full border border-border" />
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold text-primary">
-              {user.name[0]?.toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {user.isVerified ? "Verified identity" : "Identity not verified yet"}
-            </p>
+      <section className="card-shadow flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+        {user.avatarUrl ? (
+          <Image src={user.avatarUrl} alt="" width={40} height={40} className="rounded-full border border-border" />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold text-primary">
+            {user.name[0]?.toUpperCase()}
           </div>
-          <Link href="/dashboard/profile" className="text-sm font-medium text-primary hover:underline">
-            Edit profile
-          </Link>
-        </section>
-      )}
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{user.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {user.isVerified ? "Verified identity" : "Identity not verified yet"}
+          </p>
+        </div>
+        <Link href="/dashboard/profile" className="text-sm font-medium text-primary hover:underline">
+          Edit profile
+        </Link>
+      </section>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-toastify";
-import { deleteJob } from "./jobApi";
+import { deleteJobAction } from "./actions";
 import { TJob } from "./types";
 import JobFormDialog from "./JobFormDialog";
 import ConfirmDialog from "../../components/shared/ConfirmDialog";
@@ -24,12 +24,12 @@ export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      await deleteJob(deleteTarget.id);
+      await deleteJobAction(deleteTarget.id);
       setJobs((prev) => prev.filter((j) => j.id !== deleteTarget.id));
       toast.success("Job deleted successfully");
       setDeleteTarget(null);
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete job");
     } finally {
       setIsDeleting(false);
     }

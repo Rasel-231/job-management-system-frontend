@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { logout } from "../../features/auth/authSlice";
-import { logoutUser } from "../../features/auth/authApi";
+import { logoutAction } from "../../features/auth/actions";
 import VerifiedBadge from "./VerifiedBadge";
 import ThemeToggle from "./ThemeToggle";
 import { Button } from "../ui/button";
@@ -19,75 +19,177 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Navbar() {
-  const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch {
-      // proceed to clear client state regardless
-    }
     dispatch(logout());
+    setMenuOpen(false);
     toast.success("Logged out successfully");
-    router.push("/login");
+    // Server action clears the httpOnly session cookies (accessToken,
+    // refreshToken, role) and redirects to /login.
+    await logoutAction();
   };
 
-  return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-6 py-3 backdrop-blur-md">
-      <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-          <Icon name="grid" className="h-4 w-4" />
-        </span>
-        Job<span className="text-primary">Stack</span>
-      </Link>
-      <div className="flex items-center gap-4">
-        <ThemeToggle />
-        {user ? (
-          <>
-            <div className="text-right">
-              <p className="inline-flex items-center gap-1.5 text-sm font-medium">
-                {user.name}
-                {user.isVerified && <VerifiedBadge size={12} />}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {user.role === "ADMIN" ? "Administrator" : roleLabels[user.accountType]}
-                {!user.isVerified && user.role !== "ADMIN" && (
-                  <Link href="/dashboard/verification" className={cn("ml-1.5 font-medium text-primary hover:underline")}>
-                    Verify now
-                  </Link>
-                )}
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
-              <Icon name="logout" className="h-3.5 w-3.5" />
-              Logout
-            </Button>
-          </>
-        ) : (
-          <>
-            <Link
-              href="/jobs"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Browse jobs
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.98]"
-            >
-              Get started
-            </Link>
-          </>
+  const closeMenu = () => setMenuOpen(false);
+
+  const userInfo = user ? (
+    <div className="text-right">
+      <p className="inline-flex items-center gap-1.5 text-sm font-medium">
+        {user.name}
+        {user.isVerified && <VerifiedBadge size={12} />}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {user.role === "ADMIN" ? "Administrator" : roleLabels[user.accountType]}
+        {!user.isVerified && user.role !== "ADMIN" && (
+          <Link
+            href="/dashboard/verification"
+            className={cn("ml-1.5 font-medium text-primary hover:underline")}
+          >
+            Verify now
+          </Link>
         )}
+      </p>
+    </div>
+  ) : null;
+
+  const desktopNav = user ? (
+    <>
+      {userInfo}
+      <Link
+        href={user.role === "ADMIN" ? "/admin/jobs" : "/dashboard"}
+        className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+      >
+        <Icon name="grid" className="h-4 w-4" />
+        Dashboard
+      </Link>
+      <Link
+        href={user.role === "ADMIN" ? "/admin/profile" : "/dashboard/profile"}
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-label="Profile"
+      >
+        <Icon name="user" className="h-4 w-4" />
+      </Link>
+      <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
+        <Icon name="logout" className="h-3.5 w-3.5" />
+        Logout
+      </Button>
+    </>
+  ) : (
+    <>
+      <Link
+        href="/jobs"
+        onClick={closeMenu}
+        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+      >
+        Browse jobs
+      </Link>
+      <Link
+        href="/login"
+        onClick={closeMenu}
+        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+      >
+        Login
+      </Link>
+      <Link
+        href="/register"
+        onClick={closeMenu}
+        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.98]"
+      >
+        Get started
+      </Link>
+    </>
+  );
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-md">
+      <div className="flex items-center justify-between px-6 py-3">
+        <Link href="/" onClick={closeMenu} className="flex items-center gap-2 text-lg font-bold tracking-tight">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Icon name="grid" className="h-4 w-4" />
+          </span>
+          Pay<span className="text-primary">Task</span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
+          <nav className="hidden items-center gap-4 md:flex">{desktopNav}</nav>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+          >
+            <Icon name={menuOpen ? "x" : "menu"} className="h-5 w-5" />
+          </button>
+        </div>
       </div>
+
+      {menuOpen && (
+        <nav className="border-t border-border px-4 py-3 md:hidden">
+          <div className="flex flex-col gap-3">
+            {user ? (
+              <>
+                <div className="text-start">{userInfo}</div>
+                <div className="h-px bg-border" />
+                <div className="flex flex-col gap-1">
+                  <Link
+                    href={user.role === "ADMIN" ? "/admin/jobs" : "/dashboard"}
+                    onClick={closeMenu}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  >
+                    <Icon name="grid" className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                  <Link
+                    href={user.role === "ADMIN" ? "/admin/profile" : "/dashboard/profile"}
+                    onClick={closeMenu}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  >
+                    <Icon name="user" className="h-4 w-4" />
+                    Profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-accent"
+                  >
+                    <Icon name="logout" className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <Link
+                  href="/jobs"
+                  onClick={closeMenu}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  <Icon name="briefcase" className="h-4 w-4" />
+                  Browse jobs
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={closeMenu}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  <Icon name="user" className="h-4 w-4" />
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={closeMenu}
+                  className="mt-2 flex items-center justify-center gap-2.5 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.98]"
+                >
+                  Get started
+                </Link>
+              </div>
+            )}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

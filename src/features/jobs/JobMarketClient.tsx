@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { getFeedJobs, toggleLike, addComment, getComments } from "./jobApi";
+import { toggleLikeAction, addCommentAction, getCommentsAction } from "./actions";
 import { TJob, TJobComment, categoryLabels } from "./types";
 import { useAppSelector } from "../../redux/hooks";
+import { usePushToUrl } from "../../lib/useUrlState";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
 import JobDetailModal from "./JobDetailModal";
 import { Input } from "../../components/ui/input";
@@ -18,43 +19,60 @@ import { cn } from "../../lib/utils";
 
 const emptyCategory = "__ALL__";
 
-export default function JobMarketClient() {
+// CLIENT COMPONENT — the interactive shell for the /jobs feed. Initial rows
+// arrive as props from the Server Component; search/filter/pagination navigate
+// the URL so the server re-fetches; like/comment/apply go through Server Actions.
+type TJobMarketClientProps = {
+  initialJobs: TJob[];
+  initialPage: number;
+  initialHasMore: boolean;
+  appliedJobIds: string[];
+  initialSearchTerm: string;
+  initialCategory: string;
+};
+
+export default function JobMarketClient({
+  initialJobs,
+  initialPage,
+  initialHasMore,
+  appliedJobIds,
+  initialSearchTerm,
+  initialCategory,
+}: TJobMarketClientProps) {
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
-  const [jobs, setJobs] = useState<TJob[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState(emptyCategory);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const pushToUrl = usePushToUrl();
+
+  const [jobs, setJobs] = useState<TJob[]>(initialJobs);
+  const [category, setCategory] = useState(initialCategory);
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [page, setPage] = useState(initialPage);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const prevPageRef = useRef(initialPage);
 
   const [selectedJob, setSelectedJob] = useState<TJob | null>(null);
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
 
-  const load = async (pageToLoad: number = 1, reset = false) => {
-    setLoading(true);
-    try {
-      const res = await getFeedJobs({
-        searchTerm: searchTerm || undefined,
-        category: category !== emptyCategory ? category : undefined,
-        page: pageToLoad,
-        limit: 10,
-      });
-      const list = res.data ?? [];
-      setJobs((prev) => (reset || pageToLoad === 1 ? list : [...prev, ...list]));
-      setHasMore(list.length === 10);
-      setPage(pageToLoad);
-    } catch {
-      // handled globally
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Sync with the server-rendered dataset: "load more" (page grew) appends,
+  // any fresh search/filter replaces.
   useEffect(() => {
-    void load(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
+    if (initialPage > prevPageRef.current) {
+      setJobs((prev) => {
+        const existing = new Set(prev.map((j) => j.id));
+        return [...prev, ...initialJobs.filter((j) => !existing.has(j.id))];
+      });
+    } else {
+      setJobs(initialJobs);
+    }
+    setPage(initialPage);
+    setHasMore(initialHasMore);
+    prevPageRef.current = initialPage;
+  }, [initialJobs, initialHasMore, initialPage]);
+
+  const qs = () => ({
+    search: searchTerm || undefined,
+    category: category !== emptyCategory ? category : undefined,
+  });
 
   const requireLogin = () => {
     if (user) return true;
@@ -62,6 +80,8 @@ export default function JobMarketClient() {
     router.push("/login");
     return false;
   };
+
+  const handleSearch = () => pushToUrl({ ...qs(), page: 1 });
 
   const handleLike = async (job: TJob) => {
     if (!requireLogin()) return;
@@ -74,14 +94,15 @@ export default function JobMarketClient() {
       )
     );
     try {
-      const res = await toggleLike(job.id);
+      const res = await toggleLikeAction(job.id);
       setJobs((prevJobs) =>
         prevJobs.map((j) => (j.id === job.id ? { ...j, isLiked: res.liked, likeCount: res.likesCount } : j))
       );
-    } catch {
+    } catch (err) {
       setJobs((prevJobs) =>
         prevJobs.map((j) => (j.id === job.id ? { ...j, isLiked: prev.liked, likeCount: prev.count } : j))
       );
+      toast.error(err instanceof Error ? err.message : "Failed to like");
     }
   };
 
@@ -90,26 +111,26 @@ export default function JobMarketClient() {
     const content = commentInput[jobId]?.trim();
     if (!content) return;
     try {
-      const comment = await addComment(jobId, content);
+      const comment = await addCommentAction(jobId, content);
       setJobs((prev) =>
         prev.map((j) =>
           j.id === jobId ? { ...j, commentCount: j.commentCount + 1, comments: [...(j.comments ?? []), comment] } : j
         )
       );
       setCommentInput((prev) => ({ ...prev, [jobId]: "" }));
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add comment");
     }
   };
 
   const expandComments = async (jobId: string) => {
     const job = jobs.find((j) => j.id === jobId);
-    if (job?.comments) return; // already loaded
+    if (job?.comments) return;
     try {
-      const comments = await getComments(jobId);
+      const comments = await getCommentsAction(jobId);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, comments } : j)));
-    } catch {
-      // handled globally
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load comments");
     }
   };
 
@@ -130,9 +151,16 @@ export default function JobMarketClient() {
           placeholder="Search jobs..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void load(1, true)}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         />
-        <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-48 shrink-0">
+        <Select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            pushToUrl({ ...qs(), search: searchTerm || undefined, category: e.target.value !== emptyCategory ? e.target.value : undefined, page: 1 });
+          }}
+          className="w-48 shrink-0"
+        >
           <option value={emptyCategory}>All Categories</option>
           {Object.entries(categoryLabels).map(([value, label]) => (
             <option key={value} value={value}>
@@ -140,20 +168,13 @@ export default function JobMarketClient() {
             </option>
           ))}
         </Select>
-        <Button variant="secondary" onClick={() => void load(1, true)}>
+        <Button variant="secondary" onClick={handleSearch}>
           Search
         </Button>
       </div>
 
       {/* Feed cards */}
-      {loading && jobs.length === 0 && (
-        <div className="animate-grid-fade space-y-4">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-40 animate-pulse rounded-xl border border-border bg-card" />
-          ))}
-        </div>
-      )}
-      {!loading && jobs.length === 0 && (
+      {jobs.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-card py-14 text-center">
           <p className="font-medium text-foreground">No jobs found</p>
           <p className="mt-1 text-sm text-muted-foreground">Adjust your filters or check back later.</p>
@@ -173,10 +194,7 @@ export default function JobMarketClient() {
                 </div>
               )}
             </button>
-            <button
-              className="flex-1 text-left"
-              onClick={() => setSelectedJob(job)}
-            >
+            <button className="flex-1 text-left" onClick={() => setSelectedJob(job)}>
               <p className="inline-flex items-center gap-1 text-sm font-medium">
                 {job.postedBy.name}
                 {job.postedBy.isVerified && <VerifiedBadge size={12} />}
@@ -192,8 +210,8 @@ export default function JobMarketClient() {
           <button className="w-full text-left" onClick={() => setSelectedJob(job)}>
             <h2 className="px-4 text-base font-semibold tracking-tight">{job.title}</h2>
             {job.imageUrl && (
-              <div className="relative mt-2 h-60 w-full">
-                <Image src={job.imageUrl} alt={job.title} fill className="object-cover" />
+              <div className="relative mt-2 aspect-video w-full overflow-hidden">
+                <Image src={job.imageUrl} alt={job.title} fill sizes="(min-width: 1024px) 672px, 92vw" className="object-cover" />
               </div>
             )}
             <p className="mt-2 line-clamp-3 px-4 text-sm text-muted-foreground">{job.description}</p>
@@ -280,15 +298,17 @@ export default function JobMarketClient() {
         <Button
           variant="outline"
           className="w-full"
-          disabled={loading}
-          isLoading={loading}
-          onClick={() => void load(page + 1, false)}
+          onClick={() => pushToUrl({ ...qs(), page: page + 1 })}
         >
-          {loading ? "Loading..." : "Load more jobs"}
+          Load more jobs
         </Button>
       )}
 
-      <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+      <JobDetailModal
+        job={selectedJob}
+        onClose={() => setSelectedJob(null)}
+        hasApplied={selectedJob ? appliedJobIds.includes(selectedJob.id) : false}
+      />
     </div>
   );
 }

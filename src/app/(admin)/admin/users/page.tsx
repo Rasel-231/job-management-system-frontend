@@ -1,13 +1,30 @@
-import { serverFetch } from "../../../../lib/serverFetch";
-import { TApiResponse } from "../../../../types/apiResponse";
-import { TUserRow } from "../../../../features/user/types";
+import { getAllUsers } from "../../../../features/user/server";
 import UserApprovalClient from "../../../../features/user/UserApprovalClient";
 
-// SERVER COMPONENT — fetches page-1 data on the server (httpOnly cookie
-// token via serverFetch). All subsequent filtering/pagination happens
-// client-side through axiosInstance inside UserApprovalClient.
-export default async function AdminUsersPage() {
-  const res = await serverFetch<TApiResponse<TUserRow[]>>("/users", { params: { page: 1, limit: 10 } });
+// SERVER COMPONENT — row data fetched server-side; filter & page live in the URL.
+export const dynamic = "force-dynamic";
 
-  return <UserApprovalClient initialUsers={res.data ?? []} />;
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string; page?: string }>;
+}) {
+  const sp = await searchParams;
+  const filter = sp.filter ?? "ALL";
+  const page = Math.max(1, Number(sp.page) || 1);
+
+  const { users, meta } = await getAllUsers(
+    filter !== "ALL" ? { status: filter } : undefined,
+    page,
+    10
+  );
+
+  return (
+    <UserApprovalClient
+      initialUsers={users}
+      initialFilter={filter}
+      initialPage={page}
+      initialTotalPages={meta?.totalPages ?? 1}
+    />
+  );
 }
