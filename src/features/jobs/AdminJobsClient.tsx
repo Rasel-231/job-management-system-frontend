@@ -1,22 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { deleteJobAction } from "./actions";
 import { TJob } from "./types";
 import JobFormDialog from "./JobFormDialog";
 import ConfirmDialog from "../../components/shared/ConfirmDialog";
+import Pagination from "../../components/shared/Pagination";
 import Can from "../../components/shared/Can";
 import { Permission } from "../../lib/permissions";
+import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }) {
+type TAdminJobsClientProps = {
+  initialJobs: TJob[];
+  initialPage: number;
+  initialTotalPages: number;
+};
+
+export default function AdminJobsClient({
+  initialJobs,
+  initialPage,
+  initialTotalPages,
+}: TAdminJobsClientProps) {
   const [jobs, setJobs] = useState<TJob[]>(initialJobs);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [deleteTarget, setDeleteTarget] = useState<TJob | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const pushToUrl = usePushToUrl();
+
+  useEffect(() => {
+    setJobs(initialJobs);
+    setPage(initialPage);
+    setTotalPages(initialTotalPages);
+  }, [initialJobs, initialPage, initialTotalPages]);
 
   const handleCreateSuccess = (job: TJob) => setJobs((prev) => [job, ...prev]);
   const handleEditSuccess = (job: TJob) => setJobs((prev) => prev.map((j) => (j.id === job.id ? job : j)));
@@ -91,6 +112,7 @@ export default function AdminJobsClient({ initialJobs }: { initialJobs: TJob[] }
             )}
           </TableBody>
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ page: p })} />
       </div>
 
       <ConfirmDialog

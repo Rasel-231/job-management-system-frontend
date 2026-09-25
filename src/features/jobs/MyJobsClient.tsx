@@ -6,6 +6,7 @@ import { acceptApplicationAction, reviewTaskAction } from "../tasks/actions";
 import { TJob, categoryLabels } from "./types";
 import { TTask } from "../tasks/types";
 import VerifiedBadge from "../../components/shared/VerifiedBadge";
+import NoteDialog from "../../components/shared/NoteDialog";
 import { Button } from "../../components/ui/button";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
@@ -31,6 +32,7 @@ export default function MyJobsClient({ initialJobs, initialApplicationsByJob }: 
   const [applicationsByJob, setApplicationsByJob] = useState<Record<string, TTask[]>>(initialApplicationsByJob);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<TTask | null>(null);
 
   const run = async (id: string, fn: () => Promise<TTask>, successMessage?: string) => {
     setBusy(id);
@@ -71,6 +73,8 @@ export default function MyJobsClient({ initialJobs, initialApplicationsByJob }: 
             <button
               className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-accent/50"
               onClick={() => setExpanded((prev) => ({ ...prev, [job.id]: !prev[job.id] }))}
+              aria-expanded={isOpen}
+              aria-controls={`applications-${job.id}`}
             >
               <div>
                 <h2 className="font-semibold tracking-tight">{job.title}</h2>
@@ -84,7 +88,7 @@ export default function MyJobsClient({ initialJobs, initialApplicationsByJob }: 
             </button>
 
             {isOpen && (
-              <div className="border-t border-border">
+              <div id={`applications-${job.id}`} className="border-t border-border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -154,11 +158,7 @@ export default function MyJobsClient({ initialJobs, initialApplicationsByJob }: 
                                   size="sm"
                                   variant="destructive"
                                   disabled={busy === task.id}
-                                  onClick={() => {
-                                    const note = prompt("Rejection note:");
-                                    if (note === null) return;
-                                    void run(task.id, () => reviewTaskAction(task.id, "REJECTED", note || undefined));
-                                  }}
+                                  onClick={() => setRejectTarget(task)}
                                 >
                                   Reject
                                 </Button>
@@ -175,6 +175,22 @@ export default function MyJobsClient({ initialJobs, initialApplicationsByJob }: 
           </div>
         );
       })}
+
+      <NoteDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => !open && setRejectTarget(null)}
+        title="Reject application"
+        label="Rejection note"
+        placeholder="Tell the participant why their proof was rejected."
+        confirmText="Reject"
+        isLoading={busy === rejectTarget?.id}
+        onConfirm={(note) => {
+          if (!rejectTarget) return;
+          const { id } = rejectTarget;
+          setRejectTarget(null);
+          void run(id, () => reviewTaskAction(id, "REJECTED", note || undefined));
+        }}
+      />
     </div>
   );
 }

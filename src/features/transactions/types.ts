@@ -1,8 +1,10 @@
+import { TCompactUser } from "../../types/user";
+
 export type TTransactionType = "EARNING" | "WITHDRAWAL";
 export type TWithdrawalMethod = "BKASH" | "NAGAD" | "ROCKET" | "BANK_TRANSFER";
 export type TWithdrawalStatus = "PENDING" | "COMPLETED" | "REJECTED";
 
-export const withdrawalMethodLabels: Record<string, string> = {
+export const withdrawalMethodLabels: Record<TWithdrawalMethod, string> = {
   BKASH: "Bkash",
   NAGAD: "Nagad",
   ROCKET: "Rocket",
@@ -13,10 +15,10 @@ export type TTransaction = {
   id: string;
   amount: number;
   type: TTransactionType;
-  status: string;
+  status: TWithdrawalStatus;
   note: string | null;
   createdAt: string;
-  user?: { id: string; name: string; email: string };
+  user?: TCompactUser;
 };
 
 export type TWithdrawal = {
@@ -29,7 +31,7 @@ export type TWithdrawal = {
   adminNote: string | null;
   createdAt: string;
   resolvedAt: string | null;
-  user?: { id: string; name: string; email: string; phone: string | null };
+  user?: TCompactUser;
 };
 
 export type TEarningsSummary = {

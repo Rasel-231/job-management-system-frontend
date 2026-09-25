@@ -8,7 +8,7 @@ import { Icon, type TIconName } from "../ui/icons";
 
 type TSidebarLink = { label: string; href: string; icon: TIconName };
 
-const adminLinks: TSidebarLink[] = [
+export const adminLinks: TSidebarLink[] = [
   { label: "Jobs", href: "/admin/jobs", icon: "briefcase" },
   { label: "Verifications", href: "/admin/verifications", icon: "shield" },
   { label: "Withdrawals", href: "/admin/withdrawals", icon: "banknote" },
@@ -19,7 +19,7 @@ const adminLinks: TSidebarLink[] = [
   { label: "Profile", href: "/admin/profile", icon: "user" },
 ];
 
-const userLinks: TSidebarLink[] = [
+export const userLinks: TSidebarLink[] = [
   { label: "Overview", href: "/dashboard", icon: "grid" },
   { label: "Job Feed", href: "/jobs", icon: "briefcase" },
   { label: "My Tasks", href: "/dashboard/my-tasks", icon: "checklist" },

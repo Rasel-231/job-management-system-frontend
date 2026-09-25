@@ -13,20 +13,30 @@ import { Input } from "../../components/ui/input";
 import { Icon } from "../../components/ui/icons";
 
 const features = [
-  { icon: "briefcase", title: "Find & post jobs", desc: "Browse tasks or hire talent all in one place." },
-  { icon: "shield", title: "Secure payments", desc: "Escrow-backed payments keep both sides safe." },
-  { icon: "scale", title: "Fair disputes", desc: "Raise and resolve disputes transparently." },
+  {
+    icon: "briefcase",
+    title: "Find & post jobs",
+    desc: "Browse tasks or hire talent all in one place.",
+  },
+  {
+    icon: "shield",
+    title: "Secure payments",
+    desc: "Escrow-backed payments keep both sides safe.",
+  },
+  {
+    icon: "scale",
+    title: "Fair disputes",
+    desc: "Raise and resolve disputes transparently.",
+  },
 ] as const;
-
-// CLIENT COMPONENT — needs form state, Redux dispatch, and router navigation.
-// The actual login is a Server Action (loginAction) so the httpOnly auth
-// cookies are issued server-side, never accessible to JS.
 export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawRedirect = searchParams.get("redirectTo");
   const redirectTo =
-    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : undefined;
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : undefined;
   const dispatch = useAppDispatch();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -39,11 +49,16 @@ export default function LoginClient() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await loginAction({ email: formData.email, password: formData.password });
+      const res = await loginAction({
+        email: formData.email,
+        password: formData.password,
+      });
       if (res.ok) {
         dispatch(setUser(res.user));
         toast.success("Logged in successfully");
-        router.push(redirectTo ?? (res.user.role === "ADMIN" ? "/admin/jobs" : "/jobs"));
+        router.push(
+          redirectTo ?? (res.user.role === "ADMIN" ? "/admin/jobs" : "/jobs"),
+        );
       } else {
         toast.error(res.error);
       }
@@ -71,7 +86,8 @@ export default function LoginClient() {
                 Your work, managed in one place.
               </h2>
               <p className="mt-2 text-sm text-primary-foreground/75">
-                Join thousands of participants and clients building together on PayTask.
+                Join thousands of participants and clients building together on
+                PayTask.
               </p>
             </div>
 
@@ -82,8 +98,12 @@ export default function LoginClient() {
                     <Icon name={f.icon} className="h-4 w-4" />
                   </span>
                   <span>
-                    <span className="block text-sm font-semibold">{f.title}</span>
-                    <span className="block text-xs text-primary-foreground/70">{f.desc}</span>
+                    <span className="block text-sm font-semibold">
+                      {f.title}
+                    </span>
+                    <span className="block text-xs text-primary-foreground/70">
+                      {f.desc}
+                    </span>
                   </span>
                 </li>
               ))}
@@ -100,34 +120,67 @@ export default function LoginClient() {
           <BackButton className="mb-6 self-start" />
           <div className="mb-6 text-center md:text-left">
             <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Sign in to continue to PayTask</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to continue to PayTask
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" autoComplete="email" required />
+              <label htmlFor="login-email" className="text-sm font-medium">Email</label>
+              <Input
+                id="login-email"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Password</label>
-              <Input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" autoComplete="current-password" required />
+              <label htmlFor="login-password" className="text-sm font-medium">Password</label>
+              <Input
+                id="login-password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
             </div>
-            <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              isLoading={isLoading}
+            >
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">or continue with</span>
+            <span className="text-xs text-muted-foreground">
+              or continue with
+            </span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <SocialLoginButtons accountType="JOB_SEEKER" redirectBase={() => redirectTo ?? "/jobs"} />
+          <SocialLoginButtons
+            accountType="JOB_SEEKER"
+            redirectBase={() => redirectTo ?? "/jobs"}
+          />
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <a href="/register" className="font-medium text-primary hover:underline">
+            <a
+              href="/register"
+              className="font-medium text-primary hover:underline"
+            >
               Register
             </a>
           </p>

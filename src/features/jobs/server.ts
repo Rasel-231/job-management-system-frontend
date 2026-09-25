@@ -28,9 +28,9 @@ export async function getMyJobs(): Promise<TJob[]> {
   return res.data ?? [];
 }
 
-export async function getAdminJobs(page = 1, limit = 50): Promise<TJob[]> {
+export async function getAdminJobs(page = 1, limit = 50): Promise<{ jobs: TJob[]; meta?: TMeta }> {
   const res = await serverFetch<TApiResponse<TJob[]>>("/jobs", { params: { page, limit } });
-  return res.data ?? [];
+  return { jobs: res.data ?? [], meta: res.meta };
 }
 
 export async function getComments(jobId: string): Promise<TJobComment[]> {

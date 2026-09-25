@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { logout } from "../../features/auth/authSlice";
 import { logoutAction } from "../../features/auth/actions";
+import { adminLinks, userLinks } from "./Sidebar";
 import VerifiedBadge from "./VerifiedBadge";
 import ThemeToggle from "./ThemeToggle";
 import { Button } from "../ui/button";
@@ -24,12 +25,17 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
+    // Run the server action FIRST so cookies are cleared before the UI flips —
+    // otherwise a failed logout leaves the UI logged out while cookies persist.
+    try {
+      await logoutAction();
+    } catch {
+      toast.error("Logout failed — please try again");
+      return;
+    }
     dispatch(logout());
     setMenuOpen(false);
     toast.success("Logged out successfully");
-    // Server action clears the httpOnly session cookies (accessToken,
-    // refreshToken, role) and redirects to /login.
-    await logoutAction();
   };
 
   const closeMenu = () => setMenuOpen(false);
@@ -113,11 +119,11 @@ export default function Navbar() {
         </Link>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          <nav className="hidden items-center gap-4 md:flex">{desktopNav}</nav>
+          <nav className="hidden items-center gap-4 lg:flex">{desktopNav}</nav>
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
           >
@@ -127,40 +133,35 @@ export default function Navbar() {
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-border px-4 py-3 md:hidden">
+        <nav className="border-t border-border px-4 py-3 lg:hidden">
           <div className="flex flex-col gap-3">
-            {user ? (
-              <>
-                <div className="text-start">{userInfo}</div>
-                <div className="h-px bg-border" />
-                <div className="flex flex-col gap-1">
-                  <Link
-                    href={user.role === "ADMIN" ? "/admin/jobs" : "/dashboard"}
-                    onClick={closeMenu}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                  >
-                    <Icon name="grid" className="h-4 w-4" />
-                    Dashboard
-                  </Link>
-                  <Link
-                    href={user.role === "ADMIN" ? "/admin/profile" : "/dashboard/profile"}
-                    onClick={closeMenu}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                  >
-                    <Icon name="user" className="h-4 w-4" />
-                    Profile
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-accent"
-                  >
-                    <Icon name="logout" className="h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              </>
-            ) : (
+{user ? (
+  <>
+    <div className="text-start">{userInfo}</div>
+    <div className="h-px bg-border" />
+    <div className="flex flex-col gap-1">
+      {(user.role === "ADMIN" ? adminLinks : userLinks).map((link) => (
+        <Link
+          key={link.href}
+          href={link.href}
+          onClick={closeMenu}
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          <Icon name={link.icon} className="h-4 w-4 shrink-0" />
+          {link.label}
+        </Link>
+      ))}
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-accent"
+      >
+        <Icon name="logout" className="h-4 w-4" />
+        Logout
+      </button>
+    </div>
+  </>
+) : (
               <div className="flex flex-col gap-1">
                 <Link
                   href="/jobs"

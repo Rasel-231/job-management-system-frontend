@@ -1,24 +1,27 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Next.js 16 file convention: middleware.ts -> proxy.ts, function middleware -> proxy.
-// This is the SERVER-SIDE network boundary: coarse, cookie-based redirects
-// that run before any page renders. It intentionally does NOT verify the JWT
-// or hit the database — that's what the backend's authenticate/authorize
-// middleware is for. This layer only prevents obviously-wrong navigations
-// (no session, wrong role section) from ever reaching React.
 const adminPaths = ["/admin"];
 const userPaths = ["/dashboard"];
+const authPaths = ["/login", "/register"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const refreshToken = request.cookies.get("refreshToken")?.value;
+  const accessToken = request.cookies.get("accessToken")?.value;
   const role = request.cookies.get("role")?.value;
 
-  const isAuthenticated = Boolean(refreshToken);
+  const isAuthenticated = Boolean(accessToken);
   const isAdminPath = adminPaths.some((p) => pathname.startsWith(p));
   const isUserPath = userPaths.some((p) => pathname.startsWith(p));
+  const isAuthPath = authPaths.some((p) => pathname.startsWith(p));
+
+
+  if (isAuthenticated && isAuthPath) {
+    const redirectUrl = role === "ADMIN" ? "/admin" : "/dashboard";
+    return NextResponse.redirect(new URL(redirectUrl, request.url));
+  }
+
 
   if (!isAuthenticated && (isAdminPath || isUserPath)) {
     const loginUrl = new URL("/login", request.url);
@@ -26,12 +29,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthenticated && isAdminPath && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/jobs", request.url));
-  }
 
-  if (isAuthenticated && isUserPath && role !== "USER") {
-    return NextResponse.redirect(new URL("/admin/jobs", request.url));
+  if (isAuthenticated) {
+    if (isAdminPath && role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (isUserPath && role !== "USER") {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
   }
 
   return NextResponse.next();

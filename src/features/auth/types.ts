@@ -1,3 +1,5 @@
+import { TAccountType, TUserRole, TUserStatus } from "../../types/user";
+
 export type TUser = {
   id: string;
   name: string;
@@ -6,10 +8,10 @@ export type TUser = {
   avatarUrl: string | null;
   bio: string | null;
   skillTags: string[];
-  role: "ADMIN" | "USER";
-  accountType: "JOB_SEEKER" | "JOB_POSTER" | "BOTH";
+  role: TUserRole;
+  accountType: TAccountType;
   authProvider: "EMAIL" | "GOOGLE" | "FACEBOOK";
-  status: "PENDING" | "ACTIVE" | "BLOCKED";
+  status: TUserStatus;
   isVerified: boolean;
   isPhoneVerified: boolean;
   warnings: number;
@@ -19,4 +21,4 @@ export type TAuthState = {
   user: TUser | null;
 };
 
-export type TAccountType = "JOB_SEEKER" | "JOB_POSTER" | "BOTH";
+export type { TAccountType };

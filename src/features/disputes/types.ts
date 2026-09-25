@@ -1,3 +1,5 @@
+import { TCompactUser } from "../../types/user";
+
 export type TDisputeStatus = "OPEN" | "RESOLVED" | "REJECTED";
 
 export type TDispute = {
@@ -9,6 +11,6 @@ export type TDispute = {
   resolvedAt: string | null;
   job: { id: string; title: string; reward: number };
   task: { id: string; status: string; progress: number } | null;
-  complainant: { id: string; name: string; email: string; isVerified: boolean };
-  respondent: { id: string; name: string; email: string; isVerified: boolean };
+  complainant: TCompactUser & { email: string };
+  respondent: TCompactUser & { email: string };
 };

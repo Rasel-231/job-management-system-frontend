@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { submitVerificationAction } from "./actions";
-import { requestOtp, verifyOtp } from "../auth/authApi";
-import { updateProfileAction } from "../auth/actions";
+import { updateProfileAction, requestOtpAction, verifyOtpAction } from "../auth/actions";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { setUser } from "../auth/authSlice";
 import { TUser } from "../auth/types";
@@ -21,6 +20,8 @@ const statusBadge: Record<TVerification["status"], TBadgeVariant> = {
   APPROVED: "success",
   REJECTED: "destructive",
 };
+
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 // CLIENT COMPONENT — verification history is a server-fetched prop; document
 // submissions and phone edits are Server Actions. (OTP request/verify stay
@@ -54,13 +55,16 @@ export default function VerificationClient({
     }
     setSendingOtp(true);
     try {
-      const res = await requestOtp(phone);
+      const res = await requestOtpAction(phone);
       setOtpSent(true);
-      setDevOtp(res.devOtp);
-      if (res.devOtp) toast.info(`Dev OTP: ${res.devOtp}`);
-      else toast.success("OTP sent to your phone");
-    } catch {
-      // handled globally
+      if (IS_DEV && res.devOtp) {
+        setDevOtp(res.devOtp);
+        toast.info(`Dev OTP: ${res.devOtp}`);
+      } else {
+        toast.success("OTP sent to your phone");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send OTP");
     } finally {
       setSendingOtp(false);
     }
@@ -71,14 +75,18 @@ export default function VerificationClient({
       toast.error("Enter the OTP code");
       return;
     }
+    setSendingOtp(true);
     try {
-      const updated = await verifyOtp(phone, otpCode);
+      const updated = await verifyOtpAction(phone, otpCode);
       dispatch(setUser(updated));
       toast.success("Phone verified! You now have the verified badge.");
       setOtpSent(false);
       setOtpCode("");
-    } catch {
-      // handled globally
+      setDevOtp(undefined);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "OTP verification failed");
+    } finally {
+      setSendingOtp(false);
     }
   };
 
@@ -153,7 +161,7 @@ export default function VerificationClient({
           </div>
 
           {user?.isPhoneVerified ? (
-            <p className="text-sm font-medium text-emerald-600">Phone already verified</p>
+            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Phone already verified</p>
           ) : (
             <div className="space-y-2">
               <Button type="button" variant="outline" className="w-full" onClick={handleRequestOtp} disabled={sendingOtp} isLoading={sendingOtp}>
@@ -164,11 +172,12 @@ export default function VerificationClient({
                   <Input
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder={devOtp ? `Dev OTP: ${devOtp}` : "Enter 6-digit OTP"}
+                    placeholder={IS_DEV && devOtp ? `Dev OTP: ${devOtp}` : "Enter 6-digit OTP"}
                     maxLength={6}
+                    inputMode="numeric"
                   />
-                  <Button type="button" className="w-full" onClick={handleVerifyOtp}>
-                    Verify OTP
+                  <Button type="button" className="w-full" onClick={handleVerifyOtp} disabled={sendingOtp} isLoading={sendingOtp}>
+                    {sendingOtp ? "Verifying..." : "Verify OTP"}
                   </Button>
                 </>
               )}

@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { reviewWithdrawalAction } from "./actions";
 import { TWithdrawal, withdrawalMethodLabels } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import NoteDialog from "../../components/shared/NoteDialog";
 import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
@@ -35,6 +36,7 @@ export default function AdminWithdrawalsClient({
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<TWithdrawal | null>(null);
   const pushToUrl = usePushToUrl();
 
   useEffect(() => {
@@ -49,18 +51,10 @@ export default function AdminWithdrawalsClient({
     pushToUrl({ filter: value, page: 1 });
   };
 
-  const handleReview = async (id: string, status: "COMPLETED" | "REJECTED") => {
+  const handleReview = async (id: string, status: "COMPLETED" | "REJECTED", note?: string) => {
     setUpdatingId(id);
-    let note: string | null = null;
-    if (status === "REJECTED") {
-      note = prompt("Reason (optional):");
-      if (note === null) {
-        setUpdatingId(null);
-        return;
-      }
-    }
     try {
-      await reviewWithdrawalAction(id, status, note ?? undefined);
+      await reviewWithdrawalAction(id, status, note);
       toast.success(status === "COMPLETED" ? "Withdrawal paid out" : "Withdrawal rejected");
       setWithdrawals((prev) => prev.filter((w) => w.id !== id));
     } catch (err) {
@@ -68,6 +62,11 @@ export default function AdminWithdrawalsClient({
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const requestReview = (w: TWithdrawal, status: "COMPLETED" | "REJECTED") => {
+    if (status === "REJECTED") setRejectTarget(w);
+    else void handleReview(w.id, status);
   };
 
   return (
@@ -117,8 +116,8 @@ export default function AdminWithdrawalsClient({
                   <TableCell className="text-right space-x-2">
                     {w.status === "PENDING" && (
                       <>
-                        <Button size="sm" disabled={updatingId === w.id} onClick={() => handleReview(w.id, "COMPLETED")}>Mark Paid</Button>
-                        <Button size="sm" variant="destructive" disabled={updatingId === w.id} onClick={() => handleReview(w.id, "REJECTED")}>Reject</Button>
+                        <Button size="sm" disabled={updatingId === w.id} onClick={() => requestReview(w, "COMPLETED")}>Mark Paid</Button>
+                        <Button size="sm" variant="destructive" disabled={updatingId === w.id} onClick={() => requestReview(w, "REJECTED")}>Reject</Button>
                       </>
                     )}
                   </TableCell>
@@ -129,6 +128,22 @@ export default function AdminWithdrawalsClient({
         </Table>
         <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
+
+      <NoteDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => !open && setRejectTarget(null)}
+        title="Reject withdrawal"
+        label="Reason (optional)"
+        placeholder="Why was this withdrawal rejected?"
+        confirmText="Reject"
+        isLoading={updatingId === rejectTarget?.id}
+        onConfirm={(note) => {
+          if (!rejectTarget) return;
+          const { id } = rejectTarget;
+          setRejectTarget(null);
+          void handleReview(id, "REJECTED", note || undefined);
+        }}
+      />
     </div>
   );
 }

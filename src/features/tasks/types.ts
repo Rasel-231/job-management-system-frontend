@@ -1,3 +1,5 @@
+import { TCompactUser } from "../../types/user";
+
 export type TTaskStatus = "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "APPROVED" | "REJECTED";
 
 export type TTaskStep = {
@@ -21,16 +23,16 @@ export type TTask = {
   submittedAt: string | null;
   approvedAt: string | null;
   createdAt: string;
-  user?: { id: string; name: string; email: string; avatarUrl: string | null; isVerified: boolean };
+  user?: TCompactUser & { email: string };
   job: {
     id: string;
     title: string;
     reward: number;
-    postedBy: { id: string; name: string; avatarUrl: string | null; isVerified: boolean };
+    postedBy: TCompactUser;
   };
   taskSteps: TTaskStep[];
 };
 
 export type TAdminTask = TTask & {
-  user: { id: string; name: string; email: string; avatarUrl: string | null; isVerified: boolean };
+  user: TCompactUser & { email: string };
 };

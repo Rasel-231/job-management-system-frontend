@@ -11,6 +11,7 @@ import SocialLoginButtons from "../../components/shared/SocialLoginButtons";
 import BackButton from "../../components/shared/BackButton";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { cn } from "../../lib/utils";
 
 type TRoleOption = { value: TAccountType; label: string; hint: string };
 
@@ -71,14 +72,15 @@ export default function RegisterClient() {
               key={opt.value}
               type="button"
               onClick={() => setFormData((prev) => ({ ...prev, accountType: opt.value } as typeof prev))}
-              className={`rounded-lg border px-2 py-2 text-xs font-medium transition-all ${
+              className={cn(
+                "rounded-lg border px-2 py-2 text-xs font-medium transition-all",
                 formData.accountType === opt.value
                   ? "border-primary bg-accent text-accent-foreground ring-1 ring-primary"
                   : "border-input bg-card text-foreground hover:bg-accent/60"
-              }`}
+              )}
             >
               <span className="block font-semibold">{opt.label}</span>
-              <span className={`block text-[10px] ${formData.accountType === opt.value ? "text-accent-foreground/80" : "text-muted-foreground"}`}>
+              <span className={cn("block text-[10px]", formData.accountType === opt.value ? "text-accent-foreground/80" : "text-muted-foreground")}>
                 {opt.hint}
               </span>
             </button>
@@ -88,20 +90,20 @@ export default function RegisterClient() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Name</label>
-          <Input name="name" value={formData.name} onChange={handleChange} placeholder="Your full name" autoComplete="name" required minLength={2} />
+          <label htmlFor="register-name" className="text-sm font-medium">Name</label>
+          <Input id="register-name" name="name" value={formData.name} onChange={handleChange} placeholder="Your full name" autoComplete="name" required minLength={2} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Email</label>
-          <Input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" autoComplete="email" required />
+          <label htmlFor="register-email" className="text-sm font-medium">Email</label>
+          <Input id="register-email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" autoComplete="email" required />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Phone</label>
-          <Input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+8801XXXXXXXXX" autoComplete="tel" />
+          <label htmlFor="register-phone" className="text-sm font-medium">Phone</label>
+          <Input id="register-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+8801XXXXXXXXX" autoComplete="tel" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Password</label>
-          <Input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Min 8 chars: A-Z, a-z, 0-9" autoComplete="new-password" required minLength={8} />
+          <label htmlFor="register-password" className="text-sm font-medium">Password</label>
+          <Input id="register-password" type="password" name="password" value={formData.password} onChange={handleChange} placeholder="Min 8 chars: A-Z, a-z, 0-9" autoComplete="new-password" required minLength={8} />
           <p className="text-xs text-muted-foreground">At least 8 characters, includes an uppercase letter, a lowercase letter and a number.</p>
         </div>
         <Button type="submit" className="w-full" isLoading={isLoading}>

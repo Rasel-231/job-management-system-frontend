@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { resolveDisputeAction } from "./actions";
 import { TDispute } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import NoteDialog from "../../components/shared/NoteDialog";
 import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
@@ -35,6 +36,7 @@ export default function AdminDisputesClient({
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [resolveTarget, setResolveTarget] = useState<{ dispute: TDispute; status: "RESOLVED" | "REJECTED" } | null>(null);
   const pushToUrl = usePushToUrl();
 
   useEffect(() => {
@@ -49,14 +51,9 @@ export default function AdminDisputesClient({
     pushToUrl({ filter: value, page: 1 });
   };
 
-  const handleResolve = async (id: string, status: "RESOLVED" | "REJECTED") => {
+  const handleResolve = async (id: string, status: "RESOLVED" | "REJECTED", note: string) => {
     setUpdatingId(id);
-    const input = status === "RESOLVED" ? prompt("Resolution summary:") : prompt("Rejection note:");
-    if (input === null) {
-      setUpdatingId(null);
-      return;
-    }
-    const resolution = input.trim() || (status === "RESOLVED" ? "Handled by admin" : "Not a valid claim");
+    const resolution = note.trim() || (status === "RESOLVED" ? "Handled by admin" : "Not a valid claim");
     try {
       await resolveDisputeAction(id, status, resolution);
       toast.success(status === "RESOLVED" ? "Dispute resolved" : "Dispute rejected");
@@ -66,6 +63,10 @@ export default function AdminDisputesClient({
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const requestResolve = (dispute: TDispute, status: "RESOLVED" | "REJECTED") => {
+    setResolveTarget({ dispute, status });
   };
 
   return (
@@ -111,8 +112,8 @@ export default function AdminDisputesClient({
                   <TableCell className="space-x-2 text-right">
                     {d.status === "OPEN" && (
                       <>
-                        <Button size="sm" disabled={updatingId === d.id} onClick={() => handleResolve(d.id, "RESOLVED")}>Resolve</Button>
-                        <Button size="sm" variant="destructive" disabled={updatingId === d.id} onClick={() => handleResolve(d.id, "REJECTED")}>Reject</Button>
+                        <Button size="sm" disabled={updatingId === d.id} onClick={() => requestResolve(d, "RESOLVED")}>Resolve</Button>
+                        <Button size="sm" variant="destructive" disabled={updatingId === d.id} onClick={() => requestResolve(d, "REJECTED")}>Reject</Button>
                       </>
                     )}
                   </TableCell>
@@ -123,6 +124,22 @@ export default function AdminDisputesClient({
         </Table>
         <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
+
+      <NoteDialog
+        open={!!resolveTarget}
+        onOpenChange={(open) => !open && setResolveTarget(null)}
+        title={resolveTarget?.status === "RESOLVED" ? "Resolve dispute" : "Reject dispute"}
+        label={resolveTarget?.status === "RESOLVED" ? "Resolution summary" : "Rejection note"}
+        placeholder={resolveTarget?.status === "RESOLVED" ? "How was this dispute settled?" : "Why does this claim not hold?"}
+        confirmText={resolveTarget?.status === "RESOLVED" ? "Resolve" : "Reject"}
+        isLoading={updatingId === resolveTarget?.dispute.id}
+        onConfirm={(note) => {
+          if (!resolveTarget) return;
+          const { dispute, status } = resolveTarget;
+          setResolveTarget(null);
+          void handleResolve(dispute.id, status, note);
+        }}
+      />
     </div>
   );
 }

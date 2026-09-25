@@ -1,3 +1,5 @@
+import { TCompactUser } from "../../types/user";
+
 export type TVerification = {
   id: string;
   userId: string;
@@ -8,11 +10,5 @@ export type TVerification = {
   adminNote: string | null;
   createdAt: string;
   updatedAt: string;
-  user?: { id: string; name: string; email: string; phone: string | null };
-};
-
-export type TAccountSummary = {
-  isVerified: boolean;
-  isPhoneVerified: boolean;
-  phone: string | null;
+  user?: TCompactUser;
 };

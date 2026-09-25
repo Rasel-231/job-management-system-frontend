@@ -52,6 +52,8 @@ export default function JobMarketClient({
 
   const [selectedJob, setSelectedJob] = useState<TJob | null>(null);
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
+  const likingRef = useRef<Set<string>>(new Set());
+  const loadingCommentsRef = useRef<Set<string>>(new Set());
 
   // Sync with the server-rendered dataset: "load more" (page grew) appends,
   // any fresh search/filter replaces.
@@ -85,6 +87,8 @@ export default function JobMarketClient({
 
   const handleLike = async (job: TJob) => {
     if (!requireLogin()) return;
+    if (likingRef.current.has(job.id)) return;
+    likingRef.current.add(job.id);
     const prev = { liked: job.isLiked, count: job.likeCount };
     setJobs((prevJobs) =>
       prevJobs.map((j) =>
@@ -103,6 +107,8 @@ export default function JobMarketClient({
         prevJobs.map((j) => (j.id === job.id ? { ...j, isLiked: prev.liked, likeCount: prev.count } : j))
       );
       toast.error(err instanceof Error ? err.message : "Failed to like");
+    } finally {
+      likingRef.current.delete(job.id);
     }
   };
 
@@ -124,13 +130,17 @@ export default function JobMarketClient({
   };
 
   const expandComments = async (jobId: string) => {
+    if (loadingCommentsRef.current.has(jobId)) return;
     const job = jobs.find((j) => j.id === jobId);
     if (job?.comments) return;
+    loadingCommentsRef.current.add(jobId);
     try {
       const comments = await getCommentsAction(jobId);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, comments } : j)));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load comments");
+    } finally {
+      loadingCommentsRef.current.delete(jobId);
     }
   };
 
@@ -185,7 +195,7 @@ export default function JobMarketClient({
         <article key={job.id} className="card-shadow card-shadow-hover overflow-hidden rounded-xl border border-border bg-card">
           {/* header */}
           <div className="flex items-center gap-3 p-4">
-            <button className="shrink-0" onClick={() => setSelectedJob(job)}>
+            <button className="shrink-0" onClick={() => setSelectedJob(job)} aria-label={`View details for ${job.title}`}>
               {job.postedBy.avatarUrl ? (
                 <Image src={job.postedBy.avatarUrl} alt="" width={40} height={40} className="rounded-full" />
               ) : (

@@ -1,15 +1,7 @@
-export type TUserRow = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  avatarUrl: string | null;
-  role: "ADMIN" | "USER";
-  accountType: "JOB_SEEKER" | "JOB_POSTER" | "BOTH";
-  authProvider: "EMAIL" | "GOOGLE" | "FACEBOOK";
-  status: "PENDING" | "ACTIVE" | "BLOCKED";
-  isVerified: boolean;
-  isPhoneVerified: boolean;
-  warnings: number;
+import type { TUser } from "../auth/types";
+
+// Admin list view of a user — same shape as /auth/me plus createdAt. Sharing
+// TUser keeps the two user models from drifting apart.
+export type TUserRow = TUser & {
   createdAt: string;
 };

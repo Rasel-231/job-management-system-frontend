@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { acceptApplicationAction, reviewTaskAction } from "./actions";
 import { TAdminTask } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import NoteDialog from "../../components/shared/NoteDialog";
 import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
@@ -37,6 +38,7 @@ export default function AdminTaskReviewClient({
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<TAdminTask | null>(null);
   const pushToUrl = usePushToUrl();
 
   useEffect(() => {
@@ -64,18 +66,10 @@ export default function AdminTaskReviewClient({
     }
   };
 
-  const handleDecision = async (id: string, status: "APPROVED" | "REJECTED") => {
+  const handleDecision = async (id: string, status: "APPROVED" | "REJECTED", note?: string) => {
     setUpdatingId(id);
-    let note: string | null = null;
-    if (status === "REJECTED") {
-      note = prompt("Rejection note:");
-      if (note === null) {
-        setUpdatingId(null);
-        return;
-      }
-    }
     try {
-      await reviewTaskAction(id, status, note ?? undefined);
+      await reviewTaskAction(id, status, note);
       toast.success(status === "APPROVED" ? "Task approved — reward credited" : "Task rejected");
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
@@ -83,6 +77,11 @@ export default function AdminTaskReviewClient({
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const requestDecision = (task: TAdminTask, status: "APPROVED" | "REJECTED") => {
+    if (status === "REJECTED") setRejectTarget(task);
+    else void handleDecision(task.id, status);
   };
 
   return (
@@ -139,7 +138,7 @@ export default function AdminTaskReviewClient({
                     {task.status === "SUBMITTED" && (
                       <>
                         <Button size="sm" disabled={updatingId === task.id} onClick={() => handleDecision(task.id, "APPROVED")}>Approve</Button>
-                        <Button size="sm" variant="destructive" disabled={updatingId === task.id} onClick={() => handleDecision(task.id, "REJECTED")}>Reject</Button>
+                        <Button size="sm" variant="destructive" disabled={updatingId === task.id} onClick={() => requestDecision(task, "REJECTED")}>Reject</Button>
                       </>
                     )}
                   </TableCell>
@@ -150,6 +149,22 @@ export default function AdminTaskReviewClient({
         </Table>
         <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
+
+      <NoteDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => !open && setRejectTarget(null)}
+        title="Reject task"
+        label="Rejection note"
+        placeholder="Why was this proof rejected?"
+        confirmText="Reject"
+        isLoading={updatingId === rejectTarget?.id}
+        onConfirm={(note) => {
+          if (!rejectTarget) return;
+          const { id } = rejectTarget;
+          setRejectTarget(null);
+          void handleDecision(id, "REJECTED", note || undefined);
+        }}
+      />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { TAccountType, TCompactUser } from "../../types/user";
+
 export type TJobCategory =
   | "WEB_DEVELOPMENT"
   | "GRAPHIC_DESIGN"
@@ -9,7 +11,9 @@ export type TJobCategory =
   | "SOCIAL_MEDIA"
   | "OTHER";
 
-export const categoryLabels: Record<string, string> = {
+export type TJobStatus = "OPEN" | "CLOSED";
+
+export const categoryLabels: Record<TJobCategory, string> = {
   WEB_DEVELOPMENT: "Web Development",
   GRAPHIC_DESIGN: "Graphic Design",
   CONTENT_WRITING: "Content Writing",
@@ -32,7 +36,7 @@ export type TJobComment = {
   id: string;
   content: string;
   createdAt: string;
-  user: { id: string; name: string; avatarUrl: string | null; isVerified: boolean };
+  user: TCompactUser;
 };
 
 export type TJob = {
@@ -44,14 +48,14 @@ export type TJob = {
   reward: number;
   category: TJobCategory;
   deadline: string | null;
-  status: string;
+  status: TJobStatus;
   imageUrl: string | null;
   likeCount: number;
   commentCount: number;
   taskCount: number;
   stepsCount: number;
   isLiked: boolean;
-  postedBy: { id: string; name: string; avatarUrl: string | null; accountType: string; isVerified: boolean };
+  postedBy: TCompactUser & { accountType: TAccountType };
   steps?: TJobStep[];
   comments?: TJobComment[];
   createdAt?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import { completeStepAction, submitProofAction } from "./actions";
@@ -27,6 +27,8 @@ const statusBadge: Record<TTask["status"], TBadgeVariant> = {
 export default function MyTasksClient({ initialTasks }: { initialTasks: TTask[] }) {
   const [tasks, setTasks] = useState<TTask[]>(initialTasks);
 
+  const completingStepsRef = useRef<Set<string>>(new Set());
+
   const [submitTarget, setSubmitTarget] = useState<TTask | null>(null);
   const [link, setLink] = useState("");
   const [note, setNote] = useState("");
@@ -39,12 +41,16 @@ export default function MyTasksClient({ initialTasks }: { initialTasks: TTask[] 
 
   const handleCompleteStep = async (task: TTask, step: TTaskStep) => {
     if (step.status === "COMPLETED") return;
+    if (completingStepsRef.current.has(step.id)) return;
+    completingStepsRef.current.add(step.id);
     try {
       const updated = await completeStepAction(task.id, step.id);
       patchTask(updated);
       toast.success("Step completed - progress updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update step");
+    } finally {
+      completingStepsRef.current.delete(step.id);
     }
   };
 
@@ -143,6 +149,7 @@ export default function MyTasksClient({ initialTasks }: { initialTasks: TTask[] 
                           checked={done}
                           disabled={task.status !== "IN_PROGRESS" || done}
                           onChange={() => void handleCompleteStep(task, step)}
+                          aria-label={`Mark step "${step.title}" as complete`}
                           className="mt-0.5"
                         />
                       ) : (

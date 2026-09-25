@@ -61,10 +61,13 @@ export default function SocialLoginButtons({
         size: "large",
       });
       win.google.accounts.id.prompt();
-    } else {
+    } else if (process.env.NODE_ENV !== "production") {
       // Dev fallback — provider not configured.
       toast.info("Google not configured — using demo token");
       void finish("dev_google_token_provides_verification_via_google_tokeninfo");
+    } else {
+      setLoading(null);
+      toast.error("Google sign-in is unavailable right now");
     }
   };
 
@@ -110,10 +113,13 @@ export default function SocialLoginButtons({
           win.FB!.login(onLogin, { scope: "public_profile,email" });
         }
       });
-    } else {
+    } else if (process.env.NODE_ENV !== "production") {
       // Dev fallback — FB SDK not present.
       toast.info("Facebook SDK not loaded — using demo token");
       void finish("dev_facebook_token_handled_by_graph_api");
+    } else {
+      setLoading(null);
+      toast.error("Facebook sign-in is unavailable right now");
     }
   };
 

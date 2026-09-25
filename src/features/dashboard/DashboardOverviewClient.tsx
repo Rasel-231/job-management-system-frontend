@@ -10,8 +10,6 @@ import { TJob } from "../jobs/types";
 import { Badge, type TBadgeVariant } from "../../components/ui/badge";
 import { Icon } from "../../components/ui/icons";
 
-// CLIENT COMPONENT — purely presentational: user, wallet summary, tasks and
-// jobs are rendered from server-fetched props (no client fetching here).
 const currency = (n: number) =>
   `৳ ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -39,12 +37,20 @@ export default function DashboardOverviewClient({
   const tasks = initialTasks;
   const jobs = initialJobs;
 
-  const activeTasks = tasks.filter((t) => t.status === "IN_PROGRESS" || t.status === "SUBMITTED").length;
+  const activeTasks = tasks.filter(
+    (t) => t.status === "IN_PROGRESS" || t.status === "SUBMITTED",
+  ).length;
   const completedTasks = tasks.filter((t) => t.status === "APPROVED").length;
-  const remainingTasks =
-    tasks.filter((t) => t.status === "PENDING" || t.status === "IN_PROGRESS" || t.status === "SUBMITTED").length;
+  const remainingTasks = tasks.filter(
+    (t) =>
+      t.status === "PENDING" ||
+      t.status === "IN_PROGRESS" ||
+      t.status === "SUBMITTED",
+  ).length;
   const openJobs = jobs.filter((j) => j.status === "OPEN").length;
-  const withdrawalRequested = summary ? summary.totalWithdrawn + summary.pendingWithdrawals : 0;
+  const withdrawalRequested = summary
+    ? summary.totalWithdrawn + summary.pendingWithdrawals
+    : 0;
 
   const cards = [
     {
@@ -107,7 +113,9 @@ export default function DashboardOverviewClient({
           <h1 className="text-2xl font-bold tracking-tight">
             Welcome back, {user.name?.split(" ")[0] ?? "there"}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Here&apos;s what&apos;s happening with your jobs today.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here&apos;s what&apos;s happening with your jobs today.
+          </p>
         </div>
       </div>
 
@@ -124,7 +132,9 @@ export default function DashboardOverviewClient({
                 <Icon name={card.icon} className="h-4 w-4" />
               </span>
               <p className="mt-3 text-xs text-muted-foreground">{card.label}</p>
-              <p className="mt-0.5 truncate text-lg font-bold tracking-tight">{card.value}</p>
+              <p className="mt-0.5 truncate text-lg font-bold tracking-tight">
+                {card.value}
+              </p>
             </motion.div>
           </Link>
         ))}
@@ -135,7 +145,10 @@ export default function DashboardOverviewClient({
         <section className="card-shadow rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-4">
             <h2 className="font-semibold tracking-tight">Recent tasks</h2>
-            <Link href="/dashboard/my-tasks" className="text-xs font-medium text-primary hover:underline">
+            <Link
+              href="/dashboard/my-tasks"
+              className="text-xs font-medium text-primary hover:underline"
+            >
               View all
             </Link>
           </div>
@@ -143,7 +156,10 @@ export default function DashboardOverviewClient({
             {recentTasks.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No tasks yet. Browse the{" "}
-                <Link href="/jobs" className="font-medium text-primary hover:underline">
+                <Link
+                  href="/jobs"
+                  className="font-medium text-primary hover:underline"
+                >
                   job feed
                 </Link>{" "}
                 to get started.
@@ -152,7 +168,9 @@ export default function DashboardOverviewClient({
               recentTasks.map((t) => (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{t.job.title}</p>
+                    <p className="truncate text-sm font-medium">
+                      {t.job.title}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {t.progress}% complete • {currency(t.job.reward)}
                     </p>
@@ -167,8 +185,13 @@ export default function DashboardOverviewClient({
         {/* Recent transactions */}
         <section className="card-shadow rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-4">
-            <h2 className="font-semibold tracking-tight">Recent transactions</h2>
-            <Link href="/dashboard/earnings" className="text-xs font-medium text-primary hover:underline">
+            <h2 className="font-semibold tracking-tight">
+              Recent transactions
+            </h2>
+            <Link
+              href="/dashboard/earnings"
+              className="text-xs font-medium text-primary hover:underline"
+            >
               View all
             </Link>
           </div>
@@ -181,10 +204,16 @@ export default function DashboardOverviewClient({
               recentTx.map((tx) => (
                 <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{tx.note || tx.type.toLowerCase()}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium">
+                      {tx.note || tx.type.toLowerCase()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(tx.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  <span className={`text-sm font-semibold ${tx.type === "EARNING" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                  <span
+                    className={`text-sm font-semibold ${tx.type === "EARNING" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+                  >
                     {tx.type === "EARNING" ? "+" : "−"}
                     {currency(tx.amount)}
                   </span>
@@ -198,7 +227,13 @@ export default function DashboardOverviewClient({
       {/* User profile strip */}
       <section className="card-shadow flex items-center gap-3 rounded-xl border border-border bg-card p-4">
         {user.avatarUrl ? (
-          <Image src={user.avatarUrl} alt="" width={40} height={40} className="rounded-full border border-border" />
+          <Image
+            src={user.avatarUrl}
+            alt=""
+            width={40}
+            height={40}
+            className="rounded-full border border-border"
+          />
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold text-primary">
             {user.name[0]?.toUpperCase()}
@@ -207,10 +242,15 @@ export default function DashboardOverviewClient({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{user.name}</p>
           <p className="text-xs text-muted-foreground">
-            {user.isVerified ? "Verified identity" : "Identity not verified yet"}
+            {user.isVerified
+              ? "Verified identity"
+              : "Identity not verified yet"}
           </p>
         </div>
-        <Link href="/dashboard/profile" className="text-sm font-medium text-primary hover:underline">
+        <Link
+          href="/dashboard/profile"
+          className="text-sm font-medium text-primary hover:underline"
+        >
           Edit profile
         </Link>
       </section>

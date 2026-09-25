@@ -5,7 +5,6 @@ import { serverFetch } from "../../lib/serverFetch";
 import { TApiResponse } from "../../types/apiResponse";
 import { TVerification } from "./types";
 
-// SERVER ACTIONS for KYC verification lifecycle.
 
 export async function submitVerificationAction(
   payload: { type: "NID" | "BIRTH_CERTIFICATE"; documentNumber?: string },

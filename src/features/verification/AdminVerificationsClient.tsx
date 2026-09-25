@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { reviewVerificationAction } from "./actions";
 import { TVerification } from "./types";
 import Pagination from "../../components/shared/Pagination";
+import NoteDialog from "../../components/shared/NoteDialog";
 import { usePushToUrl } from "../../lib/useUrlState";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
@@ -37,6 +38,7 @@ export default function AdminVerificationsClient({
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<TVerification | null>(null);
   const pushToUrl = usePushToUrl();
 
   useEffect(() => {
@@ -51,25 +53,22 @@ export default function AdminVerificationsClient({
     pushToUrl({ filter: value, page: 1 });
   };
 
-  const handleReview = async (id: string, status: "APPROVED" | "REJECTED") => {
+  const handleReview = async (id: string, status: "APPROVED" | "REJECTED", note?: string) => {
     setUpdatingId(id);
-    let note: string | null = null;
-    if (status === "REJECTED") {
-      note = prompt("Note to the user (optional):");
-      if (note === null) {
-        setUpdatingId(null);
-        return;
-      }
-    }
     try {
-      await reviewVerificationAction(id, status, note ?? undefined);
+      await reviewVerificationAction(id, status, note);
       toast.success(status === "APPROVED" ? "Verified — user now has the blue badge" : "Verification rejected");
-      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status, adminNote: note ?? r.adminNote } : r)));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to review");
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const requestReview = (r: TVerification, status: "APPROVED" | "REJECTED") => {
+    if (status === "REJECTED") setRejectTarget(r);
+    else void handleReview(r.id, status);
   };
 
   return (
@@ -119,8 +118,8 @@ export default function AdminVerificationsClient({
                   <TableCell className="text-right space-x-2">
                     {r.status === "PENDING" && (
                       <>
-                        <Button size="sm" disabled={updatingId === r.id} onClick={() => handleReview(r.id, "APPROVED")}>Approve</Button>
-                        <Button size="sm" variant="destructive" disabled={updatingId === r.id} onClick={() => handleReview(r.id, "REJECTED")}>Reject</Button>
+                        <Button size="sm" disabled={updatingId === r.id} onClick={() => requestReview(r, "APPROVED")}>Approve</Button>
+                        <Button size="sm" variant="destructive" disabled={updatingId === r.id} onClick={() => requestReview(r, "REJECTED")}>Reject</Button>
                       </>
                     )}
                   </TableCell>
@@ -131,6 +130,22 @@ export default function AdminVerificationsClient({
         </Table>
         <Pagination page={page} totalPages={totalPages} onPageChange={(p) => pushToUrl({ filter, page: p })} />
       </div>
+
+      <NoteDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => !open && setRejectTarget(null)}
+        title="Reject verification"
+        label="Note to the user (optional)"
+        placeholder="Why is this request being rejected?"
+        confirmText="Reject"
+        isLoading={updatingId === rejectTarget?.id}
+        onConfirm={(note) => {
+          if (!rejectTarget) return;
+          const { id } = rejectTarget;
+          setRejectTarget(null);
+          void handleReview(id, "REJECTED", note || undefined);
+        }}
+      />
     </div>
   );
 }

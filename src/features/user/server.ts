@@ -13,7 +13,7 @@ export async function getAllUsers(
   const res = await serverFetch<TApiResponse<TUserRow[]>>("/users", {
     params: {
       status: filters?.status && filters.status !== "ALL" ? filters.status : undefined,
-      search: filters?.search || undefined,
+      searchTerm: filters?.search || undefined,
       page,
       limit,
     },

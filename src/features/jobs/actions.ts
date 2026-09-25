@@ -5,9 +5,6 @@ import { serverFetch } from "../../lib/serverFetch";
 import { TApiResponse } from "../../types/apiResponse";
 import { TJob, TJobComment } from "./types";
 
-// SERVER ACTIONS — job mutations. Each writes to the backend from the server
-// (httpOnly cookie forwarded) and revalidates the affected routes so the
-// Server Components re-render with fresh data.
 
 export async function createJobAction(formData: FormData): Promise<TJob> {
   const res = await serverFetch<TApiResponse<TJob>>("/jobs", { method: "POST", body: formData });

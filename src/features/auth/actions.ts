@@ -3,16 +3,11 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { serverFetch } from "../../lib/serverFetch";
+import { API_BASE_URL } from "../../lib/config";
+import { parseSetCookie } from "../../lib/parseSetCookie";
 import { TApiResponse } from "../../types/apiResponse";
 import { TAccountType, TUser } from "./types";
 
-// SERVER ACTIONS — all auth mutations leave the browser and run here. Login,
-// register and social-login forward the backend's Set-Cookie headers into the
-// Next.js response (so httpOnly access/refresh tokens + the `role` session
-// marker are issued server-side, never readable by JS). Reads/refreshes also go
-// through serverFetch so the httpOnly cookie is never exposed to the client.
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1";
 const SESSION_COOKIES = ["accessToken", "refreshToken", "role"];
 
 type TAuthResult = { ok: true; user: TUser } | { ok: false; error: string };
@@ -25,32 +20,9 @@ type TRegisterInput = {
   accountType?: TAccountType;
 };
 
-function parseSetCookie(raw: string): { name: string; value: string; options: Record<string, string | boolean | number | Date> } {
-  const [nameValue, ...attrs] = raw.split(";");
-  const eq = nameValue.indexOf("=");
-  const name = nameValue.slice(0, eq).trim();
-  const value = nameValue.slice(eq + 1).trim();
-  const options: Record<string, string | boolean | number | Date> = {};
-  for (const attr of attrs) {
-    const trimmed = attr.trim();
-    if (!trimmed) continue;
-    const [k, v] = trimmed.split("=");
-    const key = k.trim().toLowerCase();
-    const val = v?.trim() ?? "";
-    if (key === "httponly") options.httpOnly = true;
-    else if (key === "secure") options.secure = true;
-    else if (key === "samesite") options.sameSite = (val.toLowerCase() === "lax" ? "lax" : val.toLowerCase() === "strict" ? "strict" : "none");
-    else if (key === "path") options.path = val || "/";
-    else if (key === "domain") options.domain = val;
-    else if (key === "max-age") options.maxAge = parseInt(val, 10);
-    else if (key === "expires") options.expires = new Date(val);
-  }
-  return { name, value, options };
-}
-
 async function authenticate(url: string, payload: unknown): Promise<TAuthResult> {
   const cookieStore = await cookies();
-  const res = await fetch(`${BASE_URL}${url}`, {
+  const res = await fetch(`${API_BASE_URL}${url}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -88,7 +60,7 @@ export async function logoutAction(): Promise<void> {
   try {
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.toString();
-    await fetch(`${BASE_URL}/auth/logout`, {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
       headers: { ...(cookieHeader ? { Cookie: cookieHeader } : {}) },
       cache: "no-store",
